@@ -22,7 +22,7 @@ set( KRATOS_TOPOLOGYOPTIMIZATION_APPLICATION_SOURCES
 ###############################################################
 ## define library Kratos which defines the basic python interface
 add_library(KratosTopologyOptimizationApplication SHARED ${KRATOS_TOPOLOGYOPTIMIZATION_APPLICATION_SOURCES})
-target_link_libraries(KratosTopologyOptimizationApplication KratosCore KratosSolidMechanicsApplication)
+target_link_libraries(KratosTopologyOptimizationApplication KratosCore KratosSolidMechanicsApplicatio0n KratosSolidMechanicsCore)
 set_target_properties(KratosTopologyOptimizationApplication PROPERTIES PREFIX "")
 install(TARGETS KratosTopologyOptimizationApplication DESTINATION libs )
 
@@ -30,7 +30,7 @@ install(TARGETS KratosTopologyOptimizationApplication DESTINATION libs )
 # get_property(inc_dirs DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
 # message("TestApplication subdir inc_dirs = ${inc_dirs}")
 
-# changing the .dll suffix to .pyd 
+# changing the .dll suffix to .pyd
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 	set_target_properties(KratosTopologyOptimizationApplication PROPERTIES SUFFIX .pyd)
 endif(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
