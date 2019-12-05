@@ -15,10 +15,15 @@ class ApplySlipProcess(KratosMultiphysics.Process):
             {
                 "model_part_name":"PLEASE_CHOOSE_MODEL_PART_NAME",
                 "mesh_id": 0,
-                "avoid_recomputing_normals": false
-            }  """ );
+                "avoid_recomputing_normals": false,
+                "uniform_navier_slip_length" : 0.01
+            }  """ )
 
-        settings.ValidateAndAssignDefaults(default_parameters);
+        self.navier_slip_active = False
+        if settings.Has("uniform_navier_slip_length"):
+            self.navier_slip_active = True
+
+        settings.ValidateAndAssignDefaults(default_parameters)
 
         self.model_part = Model[settings["model_part_name"].GetString()]
         self.avoid_recomputing_normals = settings["avoid_recomputing_normals"].GetBool()
@@ -28,18 +33,24 @@ class ApplySlipProcess(KratosMultiphysics.Process):
         KratosMultiphysics.NormalCalculationUtils().CalculateOnSimplex(self.model_part, self.model_part.ProcessInfo[KratosMultiphysics.DOMAIN_SIZE])
 
         # Mark the nodes and conditions with the appropriate slip flag
-        #TODO: Remove the IS_STRUCTURE variable set as soon as the flag SLIP migration is done
-        for condition in self.model_part.Conditions: #TODO: this may well not be needed!
+        for condition in self.model_part.Conditions:
             condition.Set(KratosMultiphysics.SLIP, True)
-            condition.SetValue(KratosMultiphysics.IS_STRUCTURE,1.0)
 
-        #TODO: Remove the IS_STRUCTURE variable set as soon as the flag SLIP migration is done
         for node in self.model_part.Nodes:
             node.Set(KratosMultiphysics.SLIP, True)
-            node.SetValue(KratosMultiphysics.IS_STRUCTURE,1.0)
-            node.SetSolutionStepValue(KratosMultiphysics.IS_STRUCTURE,0,1.0)
             node.SetValue(KratosMultiphysics.Y_WALL,0.0)
 
+        if self.navier_slip_active:
+            navier_slip_length = settings["uniform_navier_slip_length"].GetDouble()
+            KratosMultiphysics.VariableUtils().SetNonHistoricalVariable(
+                KratosMultiphysics.FluidDynamicsApplication.SLIP_LENGTH,
+                navier_slip_length,
+                self.model_part.Nodes)
+        else:
+            KratosMultiphysics.VariableUtils().SetNonHistoricalVariable(
+                KratosMultiphysics.FluidDynamicsApplication.SLIP_LENGTH,
+                1.0e8,
+                self.model_part.Nodes)
 
     def ExecuteInitializeSolutionStep(self):
         # Recompute the normals if needed

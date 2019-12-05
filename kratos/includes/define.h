@@ -25,7 +25,7 @@
 #include "includes/shared_pointers.h"
 #include "includes/exception.h"
 
-
+// Defining the OS
 #if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
     #define KRATOS_COMPILED_IN_LINUX
 
@@ -36,6 +36,21 @@
     #define KRATOS_COMPILED_IN_WINDOWS
 #endif
 
+// Defining the architecture (see https://sourceforge.net/p/predef/wiki/Architectures/)
+// Check Windows
+#if defined(_WIN32) || defined(_WIN64)
+   #if defined(_WIN64)
+     #define KRATOS_ENV64BIT
+   #else
+     #define KRATOS_ENV32BIT
+  #endif
+#else // It is POSIX (Linux, MacOSX, BSD...)
+  #if defined(__x86_64__) || defined(__ppc64__) || defined(__aarch64__)
+    #define KRATOS_ENV64BIT
+  #else // This includes __arm__ and __x86__
+    #define KRATOS_ENV32BIT
+  #endif
+#endif
 
 //-----------------------------------------------------------------
 //
@@ -575,6 +590,41 @@ catch(...) { Block KRATOS_THROW_ERROR(std::runtime_error, "Unknown error", MoreI
 #pragma message("WARNING: You need to implement DEPRECATED for this compiler")
 #define KRATOS_DEPRECATED
 #define KRATOS_DEPRECATED_MESSAGE(deprecated_message)
+#endif
+
+
+// The following block defines the macro KRATOS_START_IGNORING_DEPRECATED_FUNCTION_WARNING
+// If written in a file, for the following lines of code the compiler will not print warnings of type 'deprecated function'.
+// The scope ends where KRATOS_STOP_IGNORING_DEPRECATED_FUNCTION_WARNING is called.
+// NOTE!! this macro is not intented for extensive use, it's just for temporary use in methods exported to Python which
+// are still calling a C++ deprecated function.
+#if defined(__clang__)
+#define KRATOS_PRAGMA_INSIDE_MACRO_DEFINITION(x) _Pragma(#x)
+#define KRATOS_START_IGNORING_DEPRECATED_FUNCTION_WARNING \
+KRATOS_PRAGMA_INSIDE_MACRO_DEFINITION(clang diagnostic push) \
+KRATOS_PRAGMA_INSIDE_MACRO_DEFINITION(clang diagnostic ignored "-Wdeprecated-declarations")
+#elif defined(__GNUC__) || defined(__GNUG__)
+#define KRATOS_PRAGMA_INSIDE_MACRO_DEFINITION(x) _Pragma(#x)
+#define KRATOS_START_IGNORING_DEPRECATED_FUNCTION_WARNING \
+KRATOS_PRAGMA_INSIDE_MACRO_DEFINITION(GCC diagnostic push) \
+KRATOS_PRAGMA_INSIDE_MACRO_DEFINITION(GCC diagnostic ignored "-Wdeprecated-declarations")
+#elif defined(_MSC_VER)
+#define KRATOS_START_IGNORING_DEPRECATED_FUNCTION_WARNING \
+__pragma(warning(push))\
+__pragma(warning(disable: 4996))
+#endif
+
+// The following block defines the macro KRATOS_STOP_IGNORING_DEPRECATED_FUNCTION_WARNING which ends the scope for
+// ignoring the warnings of type 'deprecated function'.
+#if defined(__clang__)
+#define KRATOS_STOP_IGNORING_DEPRECATED_FUNCTION_WARNING \
+_Pragma("clang diagnostic pop")
+#elif defined(__GNUC__) || defined(__GNUG__)
+#define KRATOS_STOP_IGNORING_DEPRECATED_FUNCTION_WARNING \
+_Pragma("GCC diagnostic pop")
+#elif defined(_MSC_VER)
+#define KRATOS_STOP_IGNORING_DEPRECATED_FUNCTION_WARNING \
+__pragma(warning(pop))
 #endif
 
 

@@ -13,6 +13,8 @@ from test_structural_mesh_motion_3d import TestCase as TTestCaseStructural3D
 from test_laplacian_mesh_motion_2d import TestCase as TTestCaseLaplacian2D
 from test_laplacian_mesh_motion_3d import TestCase as TTestCaseLaplacian3D
 
+from test_ale_fluid_solver import ALEFluidSolverTest
+
 ## NIGTHLY TESTS
 
 ## VALIDATION TESTS
@@ -41,6 +43,7 @@ def AssembleTestSuites():
     # Create a test suite with the selected tests plus all small tests
     nightSuite = suites['nightly']
     nightSuite.addTests(smallSuite)
+    nightSuite.addTests(KratosUnittest.TestLoader().loadTestsFromTestCases([ALEFluidSolverTest]))
 
     # For very long tests that should not be in nightly and you can use to validate
     validationSuite = suites['validation']
@@ -57,7 +60,7 @@ if __name__ == '__main__':
     run_cpp_unit_tests.run()
     KratosMultiphysics.Logger.PrintInfo("Unittests", "Finished running cpp unit tests!")
 
-    KratosMultiphysics.Logger.PrintInfo("Unittests", "\nRunning mpi python tests ...")
+    '''KratosMultiphysics.Logger.PrintInfo("Unittests", "\nRunning mpi python tests ...")
     try:
         import KratosMultiphysics.mpi as KratosMPI
         import KratosMultiphysics.MetisApplication as MetisApplication
@@ -67,7 +70,7 @@ if __name__ == '__main__':
         KratosMultiphysics.Logger.PrintInfo("Unittests", "Finished mpi python tests!")
     except ImportError:
         KratosMultiphysics.Logger.PrintInfo("Unittests", "mpi is not available!")
-
+    '''
     KratosMultiphysics.Logger.PrintInfo("Unittests", "\nRunning python tests ...")
     KratosUnittest.runTests(AssembleTestSuites())
     KratosMultiphysics.Logger.PrintInfo("Unittests", "Finished python tests!")

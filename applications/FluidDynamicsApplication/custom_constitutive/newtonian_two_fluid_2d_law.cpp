@@ -18,7 +18,7 @@
 // Project includes
 #include "includes/checks.h"
 #include "includes/cfd_variables.h"
-#include "custom_utilities/element_size_calculator.h"
+#include "utilities/element_size_calculator.h"
 #include "custom_constitutive/newtonian_two_fluid_2d_law.h"
 
 namespace Kratos
@@ -54,7 +54,7 @@ std::string NewtonianTwoFluid2DLaw::Info() const {
     return "NewtonianTwoFluid2DLaw";
 }
 
-double NewtonianTwoFluid2DLaw::ComputeEffectiveViscosity(ConstitutiveLaw::Parameters& rParameters) const
+double NewtonianTwoFluid2DLaw::GetEffectiveViscosity(ConstitutiveLaw::Parameters& rParameters) const
 {
     double viscosity;
     EvaluateInPoint(viscosity, DYNAMIC_VISCOSITY, rParameters);
@@ -112,12 +112,12 @@ double NewtonianTwoFluid2DLaw::EquivalentStrainRate(ConstitutiveLaw::Parameters&
 
 void NewtonianTwoFluid2DLaw::save(Serializer& rSerializer) const
 {
-    KRATOS_SERIALIZE_SAVE_BASE_CLASS( rSerializer, NewtonianTwoFluid2DLaw )
+    KRATOS_SERIALIZE_SAVE_BASE_CLASS( rSerializer, Newtonian2DLaw )
 }
 
 void NewtonianTwoFluid2DLaw::load(Serializer& rSerializer)
 {
-    KRATOS_SERIALIZE_LOAD_BASE_CLASS( rSerializer, NewtonianTwoFluid2DLaw )
+    KRATOS_SERIALIZE_LOAD_BASE_CLASS( rSerializer, Newtonian2DLaw )
 }
 
 } // Namespace Kratos

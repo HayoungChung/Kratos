@@ -43,7 +43,7 @@ namespace Kratos
         ConstitutiveLaw::Pointer mpConstitutiveLaw = nullptr;
 
     public:
-        KRATOS_CLASS_POINTER_DEFINITION(TrussElement3D2N);
+        KRATOS_CLASS_INTRUSIVE_POINTER_DEFINITION(TrussElement3D2N);
 
 
         typedef Element BaseType;
@@ -110,6 +110,8 @@ namespace Kratos
         virtual BoundedMatrix<double,msLocalSize,msLocalSize>
          CreateElementStiffnessMatrix(ProcessInfo& rCurrentProcessInfo);
 
+        void Calculate(const Variable<Matrix>& rVariable, Matrix& rOutput, const ProcessInfo& rCurrentProcessInfo) override;
+
         void CalculateOnIntegrationPoints(
             const Variable<double>& rVariable,
             std::vector<double>& rOutput,
@@ -175,10 +177,36 @@ namespace Kratos
             ProcessInfo& rCurrentProcessInfo) override;
 
 
-        void AddExplicitContribution(const VectorType& rRHSVector,
-            const Variable<VectorType>& rRHSVariable,
-            Variable<array_1d<double, 3> >& rDestinationVariable,
-            const ProcessInfo& rCurrentProcessInfo) override;
+    /**
+     * @brief This function is designed to make the element to assemble an rRHS vector identified by a variable rRHSVariable by assembling it to the nodes on the variable rDestinationVariable (double version)
+     * @details The "AddEXplicit" FUNCTIONS THE ONLY FUNCTIONS IN WHICH AN ELEMENT IS ALLOWED TO WRITE ON ITS NODES.
+     * The caller is expected to ensure thread safety hence SET/UNSETLOCK MUST BE PERFORMED IN THE STRATEGY BEFORE CALLING THIS FUNCTION
+     * @param rRHSVector input variable containing the RHS vector to be assembled
+     * @param rRHSVariable variable describing the type of the RHS vector to be assembled
+     * @param rDestinationVariable variable in the database to which the rRHSVector will be assembled
+     * @param rCurrentProcessInfo the current process info instance
+     */
+    void AddExplicitContribution(
+        const VectorType& rRHSVector,
+        const Variable<VectorType>& rRHSVariable,
+        Variable<double >& rDestinationVariable,
+        const ProcessInfo& rCurrentProcessInfo
+        ) override;
+
+    /**
+     * @brief This function is designed to make the element to assemble an rRHS vector identified by a variable rRHSVariable by assembling it to the nodes on the variable (array_1d<double, 3>) version rDestinationVariable.
+     * @details The "AddEXplicit" FUNCTIONS THE ONLY FUNCTIONS IN WHICH AN ELEMENT IS ALLOWED TO WRITE ON ITS NODES.
+     * The caller is expected to ensure thread safety hence SET/UNSETLOCK MUST BE PERFORMED IN THE STRATEGY BEFORE CALLING THIS FUNCTION
+     * @param rRHSVector input variable containing the RHS vector to be assembled
+     * @param rRHSVariable variable describing the type of the RHS vector to be assembled
+     * @param rDestinationVariable variable in the database to which the rRHSVector will be assembled
+     * @param rCurrentProcessInfo the current process info instance
+     */
+    void AddExplicitContribution(const VectorType& rRHSVector,
+        const Variable<VectorType>& rRHSVariable,
+        Variable<array_1d<double, 3> >& rDestinationVariable,
+        const ProcessInfo& rCurrentProcessInfo
+        ) override;
 
 
         void GetValuesVector(
@@ -199,17 +227,7 @@ namespace Kratos
         /**
          * @brief This function calculates the current Green-Lagrange strain
          */
-        double CalculateGreenLagrangeStrain();
-
-        /**
-         * @brief This function calculates the reference length
-         */
-        double CalculateReferenceLength();
-
-        /**
-         * @brief This function calculates the current length
-         */
-        double CalculateCurrentLength();
+        double CalculateGreenLagrangeStrain()const;
 
         /**
          * @brief This function calculates self-weight forces
@@ -239,6 +257,7 @@ namespace Kratos
         virtual void WriteTransformationCoordinates(
             BoundedVector<double,msLocalSize>& rReferenceCoordinates);
 
+        double ReturnTangentModulus1D(ProcessInfo& rCurrentProcessInfo);
 
         void InitializeNonLinearIteration(ProcessInfo& rCurrentProcessInfo) override;
 
@@ -257,13 +276,18 @@ namespace Kratos
          * @param rSaveInternalVariables Boolean to save internal constit. law variables
          */
         virtual BoundedVector<double,msLocalSize> GetConstitutiveLawTrialResponse(
-            ProcessInfo& rCurrentProcessInfo,
-            const bool& rSaveInternalVariables);
+            const ProcessInfo& rCurrentProcessInfo);
 
-    private:
-        friend class Serializer;
-        void save(Serializer& rSerializer) const override;
-        void load(Serializer& rSerializer) override;
+private:
+    /**
+     * @brief This method computes directly the lumped mass vector
+     * @param rMassVector The lumped mass vector
+     */
+    void CalculateLumpedMassVector(VectorType& rMassVector);
+
+    friend class Serializer;
+    void save(Serializer& rSerializer) const override;
+    void load(Serializer& rSerializer) override;
     };
 
 

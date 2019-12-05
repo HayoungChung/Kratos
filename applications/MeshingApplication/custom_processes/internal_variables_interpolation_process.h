@@ -19,7 +19,7 @@
 
 // Project includes
 #include "utilities/openmp_utils.h"
-#include "meshing_application.h"
+#include "meshing_application_variables.h"
 #include "processes/process.h"
 #include "includes/model_part.h"
 #include "includes/kratos_parameters.h"
@@ -237,19 +237,16 @@ private:
     const unsigned int mDimension;                       /// Dimension size of the space
 
     // The allocation parameters
-    unsigned int mAllocationSize;                        /// Allocation size for the vectors and max number of potential results
-    unsigned int mBucketSize;                            /// Bucket size for kd-tree
+    unsigned int mAllocationSize;                   /// Allocation size for the vectors and max number of potential results
+    unsigned int mBucketSize;                       /// Bucket size for kd-tree
 
     // The seatch variables
-    double mSearchFactor;                                /// The search factor to be considered
-    PointVector mPointListOrigin;                        /// A list that contents the all the gauss points from the origin modelpart
+    double mSearchFactor;                           /// The search factor to be considered
+    PointVector mPointListOrigin;                   /// A list that contents the all the gauss points from the origin modelpart
 
-    // Variables to interpolate (TODO: Add more if necessary, like the matrix)
-    std::vector<DoubleVarType> mInternalDoubleVariableList; /// The list of double variables to interpolate
-    std::vector<ArrayVarType> mInternalArrayVariableList;   /// The list of array variables to interpolate
-    std::vector<VectorVarType> mInternalVectorVariableList; /// The list of vector variables to interpolate
-    std::vector<MatrixVarType> mInternalMatrixVariableList; /// The list of matrix variables to interpolate
-    InterpolationTypes mThisInterpolationType;              /// The interpolation type considered
+    // Variables to interpolate
+    std::vector<std::string> mInternalVariableList; /// The list of internal variables to interpolate
+    InterpolationTypes mThisInterpolationType;      /// The interpolation type considered
 
     ///@}
     ///@name Private Operators
@@ -613,11 +610,64 @@ private:
     }
 
     /**
+     * @brief This method interpolates values to all the nodes from the old to the new mesh
+     * @tparam TDim The dimension
+     */
+    template<std::size_t TDim>
+    void InterpolateToNodes()
+    {
+        // We create the locator
+        BinBasedFastPointLocator<TDim> point_locator(mrOriginMainModelPart);
+        point_locator.UpdateSearchDatabase();
+
+        // Iterate over nodes
+        NodesArrayType& r_nodes_array = mrDestinationMainModelPart.Nodes();
+        const int num_nodes = static_cast<int>(r_nodes_array.size());
+        const auto it_node_begin = r_nodes_array.begin();
+
+        // Auxiliar
+        Vector N;
+        Element::Pointer p_element;
+
+        /* Nodes */
+        #pragma omp parallel for firstprivate(point_locator, N, p_element)
+        for(int i = 0; i < num_nodes; ++i) {
+            auto it_node = it_node_begin + i;
+
+            const bool old_entity = it_node->IsDefined(OLD_ENTITY) ? it_node->Is(OLD_ENTITY) : false;
+            if (!old_entity) {
+                const bool found = point_locator.FindPointOnMeshSimplified(it_node->Coordinates(), N, p_element, mAllocationSize);
+
+                if (!found) {
+                    KRATOS_WARNING("InternalVariablesInterpolationProcess") << "WARNING: Node "<< it_node->Id() << " not found (interpolation not posible)" <<  "\t X:"<< it_node->X() << "\t Y:"<< it_node->Y() << "\t Z:"<< it_node->Z() << std::endl;
+                } else {
+                    for (auto& variable_name : mInternalVariableList) {
+                        if (KratosComponents<DoubleVarType>::Has(variable_name)) {
+                            const DoubleVarType& this_var = KratosComponents<DoubleVarType>::Get(variable_name);
+                            InterpolateToNode(this_var, N, (*it_node.base()), p_element);
+                        } else if (KratosComponents<ArrayVarType>::Has(variable_name)) {
+                            const ArrayVarType& this_var = KratosComponents<ArrayVarType>::Get(variable_name);
+                            InterpolateToNode(this_var, N, (*it_node.base()), p_element);
+                        } else if (KratosComponents<VectorVarType>::Has(variable_name)) {
+                            const VectorVarType& this_var = KratosComponents<VectorVarType>::Get(variable_name);
+                            InterpolateToNode(this_var, N, (*it_node.base()), p_element);
+                        } else if (KratosComponents<MatrixVarType>::Has(variable_name)) {
+                            const MatrixVarType& this_var = KratosComponents<MatrixVarType>::Get(variable_name);
+                            InterpolateToNode(this_var, N, (*it_node.base()), p_element);
+                        } else {
+                            KRATOS_WARNING("InternalVariablesInterpolationProcess") << "WARNING:: " << variable_name << " is not registered as any type of compatible variable: DOUBLE or ARRAY_1D or VECTOR or Matrix" << std::endl;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * @brief This converts the interpolation string to an enum
      * @param Str The string that you want to comvert in the equivalent enum
      * @return Interpolation: The equivalent enum (this requires less memmory than a std::string)
      */
-
     InterpolationTypes ConvertInter(const std::string& Str);
 
     ///@}

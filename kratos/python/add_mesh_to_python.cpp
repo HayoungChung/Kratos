@@ -18,11 +18,10 @@
 
 // Project includes
 #include "includes/define_python.h"
-#include "includes/model_part.h"
 #include "includes/mesh.h"
-#include "includes/properties.h"
 #include "includes/element.h"
 #include "includes/condition.h"
+#include "includes/properties.h"
 #include "python/add_mesh_to_python.h"
 #include "python/containers_interface.h"
 
@@ -141,6 +140,19 @@ void ConditionCalculateLocalSystemStandard( Condition& dummy,
                                                 ProcessInfo& rCurrentProcessInfo)
 {
     dummy.CalculateLocalSystem(rLeftHandSideMatrix,rRightHandSideVector,rCurrentProcessInfo);
+}
+
+void ConditionInitialize(Condition& dummy,
+                       const ProcessInfo& rCurrentProcessInfo)
+{
+    dummy.Initialize(rCurrentProcessInfo);
+}
+
+void ConditionInitializeOld(Condition& dummy)
+{
+    KRATOS_WARNING_FIRST_N("DEPRECATION", 10) << "Please pass a \"ProcessInfo\" to \"Initialize\"" << std::endl;
+    ProcessInfo tmp_process_info;
+    dummy.Initialize(tmp_process_info);
 }
 
 
@@ -388,9 +400,58 @@ void SetValuesOnIntegrationPointsConstitutiveLaw( Element& dummy, const Variable
 void ElementCalculateLocalSystem1(Element& dummy,
         Matrix& rLeftHandSideMatrix,
         Vector& rRightHandSideVector,
-        ProcessInfo& rCurrentProcessInfo)
+        const ProcessInfo& rCurrentProcessInfo)
 {
     dummy.CalculateLocalSystem(rLeftHandSideMatrix,rRightHandSideVector,rCurrentProcessInfo);
+}
+
+void ElementCalculateMassMatrix(Element& dummy,
+                                Matrix& rMassMatrix,
+                                const ProcessInfo& rCurrentProcessInfo)
+{
+    dummy.CalculateMassMatrix(rMassMatrix, rCurrentProcessInfo);
+}
+
+void ElementCalculateDampingMatrix(Element& dummy,
+                                   Matrix& rDampingMatrix,
+                                   const ProcessInfo& rCurrentProcessInfo)
+{
+    dummy.CalculateDampingMatrix(rDampingMatrix, rCurrentProcessInfo);
+}
+
+void ElementCalculateFirstDerivativesLHS(Element& dummy,
+                                         Matrix& rLeftHandSideMatrix,
+                                         const ProcessInfo& rCurrentProcessInfo)
+{
+    dummy.CalculateFirstDerivativesLHS(rLeftHandSideMatrix, rCurrentProcessInfo);
+}
+
+void ElementCalculateSecondDerivativesLHS(Element& dummy,
+                                          Matrix& rLeftHandSideMatrix,
+                                          const ProcessInfo& rCurrentProcessInfo)
+{
+    dummy.CalculateSecondDerivativesLHS(rLeftHandSideMatrix, rCurrentProcessInfo);
+}
+
+void ElementCalculateLocalVelocityContribution(Element& dummy,
+                                               Matrix& rDampingMatrix,
+                                               Vector& rRightHandSideVector,
+                                               const ProcessInfo& rCurrentProcessInfo)
+{
+    dummy.CalculateLocalVelocityContribution(rDampingMatrix, rRightHandSideVector, rCurrentProcessInfo);
+}
+
+void ElementInitialize(Element& dummy,
+                       const ProcessInfo& rCurrentProcessInfo)
+{
+    dummy.Initialize(rCurrentProcessInfo);
+}
+
+void ElementInitializeOld(Element& dummy)
+{
+    KRATOS_WARNING_FIRST_N("DEPRECATION", 10) << "Please pass a \"ProcessInfo\" to \"Initialize\"" << std::endl;
+    ProcessInfo tmp_process_info;
+    dummy.Initialize(tmp_process_info);
 }
 
 template<class TDataType>
@@ -449,11 +510,11 @@ void  AddMeshToPython(pybind11::module& m)
     //.def(self_ns::str(self))
     //      ;
 
-    py::class_<GeometricalObject, GeometricalObject::Pointer, GeometricalObject::BaseType/*, Flags*/  >(m,"GeometricalObject")
+    py::class_<GeometricalObject, GeometricalObject::Pointer, IndexedObject, Flags>(m,"GeometricalObject")
     .def(py::init<Kratos::GeometricalObject::IndexType>())
     ;
 
-    py::class_<Element, Element::Pointer, Element::BaseType, Flags  >(m,"Element")
+    py::class_<Element, Element::Pointer, Element::BaseType>(m,"Element")
     .def(py::init<Kratos::Element::IndexType>())
     .def_property("Properties", GetPropertiesFromElement, SetPropertiesFromElement)
     .def("GetGeometry", GetGeometryFromObject<Element>, py::return_value_policy::reference_internal)
@@ -546,12 +607,12 @@ void  AddMeshToPython(pybind11::module& m)
     .def("Calculate", &ElementCalculateInterface<array_1d<double,3> >)
     .def("Calculate", &ElementCalculateInterface<Vector >)
     .def("Calculate", &ElementCalculateInterface<Matrix >)
-    .def("CalculateMassMatrix", &Element::CalculateMassMatrix)
-    .def("CalculateDampingMatrix", &Element::CalculateDampingMatrix)
+    .def("CalculateMassMatrix", &ElementCalculateMassMatrix)
+    .def("CalculateDampingMatrix", &ElementCalculateDampingMatrix)
     .def("CalculateLocalSystem", &ElementCalculateLocalSystem1)
-    .def("CalculateFirstDerivativesLHS", &Element::CalculateFirstDerivativesLHS)
-    .def("CalculateSecondDerivativesLHS", &Element::CalculateSecondDerivativesLHS)
-    .def("CalculateLocalVelocityContribution", &Element::CalculateLocalVelocityContribution)
+    .def("CalculateFirstDerivativesLHS", &ElementCalculateFirstDerivativesLHS)
+    .def("CalculateSecondDerivativesLHS", &ElementCalculateSecondDerivativesLHS)
+    .def("CalculateLocalVelocityContribution", &ElementCalculateLocalVelocityContribution)
     .def("GetFirstDerivativesVector", &ElementGetFirstDerivativesVector1)
     .def("GetFirstDerivativesVector", &ElementGetFirstDerivativesVector2)
     .def("GetSecondDerivativesVector", &ElementGetSecondDerivativesVector1)
@@ -575,7 +636,8 @@ void  AddMeshToPython(pybind11::module& m)
 //     .def(SolutionStepVariableIndexingPython<Element, Variable<vector<double> > >())
 //     .def(SolutionStepVariableIndexingPython<Element, Variable<DenseMatrix<double> > >())
 //     .def(SolutionStepVariableIndexingPython<Element, VariableComponent<VectorComponentAdaptor<array_1d<double, 3> > > >())
-    .def("Initialize", &Element::Initialize)
+    .def("Initialize", &ElementInitialize)
+    .def("Initialize", &ElementInitializeOld)
     //.def("CalculateLocalSystem", &Element::CalculateLocalSystem)
     .def("__str__", PrintObject<Element>)
     ;
@@ -583,7 +645,7 @@ void  AddMeshToPython(pybind11::module& m)
     PointerVectorSetPythonInterface<MeshType::ElementsContainerType>().CreateInterface(m,"ElementsArray")
     ;
 
-    py::class_<Condition, Condition::Pointer, Condition::BaseType, Flags  >(m,"Condition")
+    py::class_<Condition, Condition::Pointer, Condition::BaseType>(m,"Condition")
     .def(py::init<Kratos::Condition::IndexType>())
     .def_property("Properties", GetPropertiesFromCondition, SetPropertiesFromCondition)
     .def("GetGeometry", GetGeometryFromObject<Condition>, py::return_value_policy::reference_internal)
@@ -683,7 +745,8 @@ void  AddMeshToPython(pybind11::module& m)
 //     .def(SolutionStepVariableIndexingPython<Condition, VariableComponent<VectorComponentAdaptor<array_1d<double, 3> > > >())
 
 
-    .def("Initialize", &Condition::Initialize)
+    .def("Initialize", &ConditionInitialize)
+    .def("Initialize", &ConditionInitializeOld)
     .def("CalculateLocalSystem", &ConditionCalculateLocalSystemStandard)
     .def("Info", &Condition::Info)
     .def("__str__", PrintObject<Condition>)
@@ -695,12 +758,20 @@ void  AddMeshToPython(pybind11::module& m)
     py::class_<MeshType, MeshType::Pointer, DataValueContainer, Flags >(m,"Mesh")
     .def_property("Nodes", &MeshType::pNodes,&MeshType::SetNodes)
     .def("NodesArray", &MeshType::NodesArray, py::return_value_policy::reference_internal)
+    .def("NumberOfNodes", &MeshType::NumberOfNodes)
+
     .def_property("Elements", &MeshType::pElements,&MeshType::SetElements)
     .def("ElementsArray", &MeshType::ElementsArray, py::return_value_policy::reference_internal)
+    .def("NumberOfElements", &MeshType::NumberOfElements)
+
     .def_property("Conditions", &MeshType::pConditions,&MeshType::SetConditions)
     .def("ConditionsArray", &MeshType::ConditionsArray, py::return_value_policy::reference_internal)
+    .def("NumberOfConditions", &MeshType::NumberOfConditions)
+
     .def_property("Properties", &MeshType::pProperties,&MeshType::SetProperties)
     .def("PropertiesArray", &MeshType::PropertiesArray, py::return_value_policy::reference_internal)
+    .def("NumberOfProperties", &MeshType::NumberOfProperties)
+
     .def("HasNode", &MeshType::HasNode)
     .def("HasProperties", &MeshType::HasProperties)
     .def("HasElement", &MeshType::HasElement)

@@ -10,11 +10,11 @@ The application provides the following direct sparse solvers:
 |-------------------|----------------------|:-----------:|:------------:|
 | SparseLUSolver    | `eigen_sparse_lu`    | Square      | None         |
 | SparseQRSolver    | *not available*      | Rectangular | None         |
-| PardisoLLTSolver  | `eigen_pardiso_llt`  | SPD         | Intel® MKL   |
-| PardisoLDLTSolver | `eigen_pardiso_ldlt` | SPD         | Intel® MKL   |
+| PardisoLLTSolver  | `eigen_pardiso_llt`  | SPD*        | Intel® MKL   |
+| PardisoLDLTSolver | `eigen_pardiso_ldlt` | SPD*        | Intel® MKL   |
 | PardisoLUSolver   | `eigen_pardiso_lu`   | Square      | Intel® MKL   |
 
-SPD = symmetric positive definite
+*SPD = Symmetric Positive Definite
 
 **Example**:
 
@@ -46,17 +46,21 @@ The application provides a generalized eigensystem solver for sparse matrices. I
 
 2. Set the required definitions for cmake
 
+    As any other app:
+    
+    ~~~sh
+    add_app ${KRATOS_APP_DIR}/EigenSolversApplication
+    ~~~
+
     **Windows:** in `configure.bat`
 
     ```batch
-    -DEIGEN_SOLVERS_APPLICATION=ON ^
     -DEIGEN_ROOT="<path to eigen>" ^
     ```
 
     **Linux:** in `configure.sh`
 
     ```bash
-    -DEIGEN_SOLVERS_APPLICATION=ON \
     -DEIGEN_ROOT="<path to eigen>" \
     ```
 

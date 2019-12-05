@@ -14,7 +14,7 @@
 #define KRATOS_HESSIAN_METRICS_PROCESS
 
 // Project includes
-#include "meshing_application.h"
+#include "meshing_application_variables.h"
 #include "processes/process.h"
 #include "includes/kratos_parameters.h"
 #include "includes/model_part.h"
@@ -47,13 +47,56 @@ namespace Kratos
 ///@name Kratos Classes
 ///@{
 
+    /**
+     * @struct AuxiliarHessianComputationVariables
+     * @ingroup MeshingApplication
+     * @brief This is an auxiliar struct to store remeshing variables
+     * @author Vicente Mataix Ferrandiz
+     */
+    struct AuxiliarHessianComputationVariables
+    {
+        AuxiliarHessianComputationVariables(
+            const double AnisotropicRatio,
+            const double ElementMinSize,
+            const double ElementMaxSize,
+            const double NodalH,
+            const bool EstimateInterpolationError,
+            const double InterpolationError,
+            const double MeshDependentConstant,
+            const bool AnisotropyRemeshing,
+            const bool EnforceAnisotropyRelativeVariable
+        ) : mAnisotropicRatio(AnisotropicRatio),
+            mElementMinSize(ElementMinSize),
+            mElementMaxSize(ElementMaxSize),
+            mNodalH(NodalH),
+            mEstimateInterpolationError(EstimateInterpolationError),
+            mInterpolationError(InterpolationError),
+            mMeshDependentConstant(MeshDependentConstant),
+            mAnisotropyRemeshing(AnisotropyRemeshing),
+            mEnforceAnisotropyRelativeVariable(EnforceAnisotropyRelativeVariable)
+        {
+
+        };
+
+        double mAnisotropicRatio;                /// The anisotropic ratio
+        double mElementMinSize;                  /// The min size of element. This way we can impose as minimum as the previous size if we desire
+        double mElementMaxSize;                  /// The maximal size of the elements. This way we can impose as maximum as the previous size if we desire
+        double mNodalH;                          /// The size of the local node
+        const bool mEstimateInterpolationError;        /// If the error of interpolation will be estimated
+        const double mInterpolationError;              /// The error of interpolation allowed
+        const double mMeshDependentConstant;           /// The mesh constant to remesh (depends of the element type)
+        const bool mAnisotropyRemeshing;               /// If we consider anisotropic remeshing
+        const bool mEnforceAnisotropyRelativeVariable; /// If we enforce a certain anisotropy relative toa  variable
+    };
+
 /**
  * @class ComputeHessianSolMetricProcess
  * @ingroup MeshingApplication
  * @brief This class is can be used to compute the metrics of the model part with an Hessian approach
+ * @details References:
+ *         [1] F. Alauzet, Metric-based anisotropic mesh adaptation, CEA-EDF-INRIA schools: Numerical Analysis Summer School. CEA, Cadarache, France
  * @author Vicente Mataix Ferrandiz
  */
-template<SizeType TDim, class TVarType>
 class KRATOS_API(MESHING_APPLICATION) ComputeHessianSolMetricProcess
     : public Process
 {
@@ -72,12 +115,6 @@ public:
 
     /// The index type definition
     typedef std::size_t                                                            IndexType;
-
-    /// The type of array considered for the tensor
-    typedef typename std::conditional<TDim == 2, array_1d<double, 3>, array_1d<double, 6>>::type TensorArrayType;
-
-    /// Matrix type definition
-    typedef BoundedMatrix<double, TDim, TDim> MatrixType;
 
     /// Pointer definition of ComputeHessianSolMetricProcess
     KRATOS_CLASS_POINTER_DEFINITION(ComputeHessianSolMetricProcess);
@@ -98,15 +135,36 @@ public:
     // Constructor
 
     /**
-     * @brief This is the default constructor
+     * @brief This is the default constructor (pure parameters)
+     * @param rThisModelPart The model part to be computed
+     * @param ThisParameters The input parameters
+     */
+    ComputeHessianSolMetricProcess(
+        ModelPart& rThisModelPart,
+        Parameters ThisParameters = Parameters(R"({})")
+        );
+
+    /**
+     * @brief This is the default constructor (double)
      * @param rThisModelPart The model part to be computed
      * @param rVariable The variable to compute
      * @param ThisParameters The input parameters
      */
-
     ComputeHessianSolMetricProcess(
         ModelPart& rThisModelPart,
-        TVarType& rVariable,
+        Variable<double>& rVariable,
+        Parameters ThisParameters = Parameters(R"({})")
+        );
+
+    /**
+     * @brief This is the default constructor (component)
+     * @param rThisModelPart The model part to be computed
+     * @param rVariable The variable to compute
+     * @param ThisParameters The input parameters
+     */
+    ComputeHessianSolMetricProcess(
+        ModelPart& rThisModelPart,
+        ComponentType& rVariable,
         Parameters ThisParameters = Parameters(R"({})")
         );
 
@@ -208,18 +266,15 @@ private:
     ///@name Private member Variables
     ///@{
 
-    ModelPart& mThisModelPart;                           /// The model part to compute
-    TVarType& mVariable;                                 /// The variable to calculate the hessian
-    std::string mRatioReferenceVariable = "DISTANCE";    /// Variable used to compute the anisotropic ratio
-    double mMinSize;                                     /// The minimal size of the elements
-    double mMaxSize;                                     /// The maximal size of the elements
-    bool mEnforceCurrent;                                /// With this we choose if we inforce the current nodal size (NODAL_H)
-    bool mEstimateInterpError;                           /// If the error of interpolation will be estimated
-    double mInterpError;                                 /// The error of interpolation allowed
-    double mMeshConstant;                                /// The mesh constant to remesh (depends of the element type)
-    double mAnisotropicRatio;                            /// The minimal anisotropic ratio (0 < ratio < 1)
-    double mBoundLayer;                                  /// The boundary layer limit distance
-    Interpolation mInterpolation;                        /// The interpolation type
+    ModelPart& mrModelPart;                                           /// The model part to compute
+
+    bool mNonHistoricalVariable = false;                              /// If the variable is non-historical
+    std::vector<const Variable<double>*> mrOriginVariableDoubleList;  /// The scalar variable list to compute
+    std::vector<const ComponentType*> mrOriginVariableComponentsList; /// The scalar variable list to compute (components)
+    const Variable<double>* mpRatioReferenceVariable;                 /// Variable used to compute the anisotropic ratio
+
+    Parameters mThisParameters;                                       /// Here configurations are stored
+    Interpolation mInterpolation;                                     /// The interpolation type
 
     ///@}
     ///@name Private Operators
@@ -233,15 +288,12 @@ private:
      * @brief This function is used to compute the Hessian Metric tensor
      * @details Note that when using the Hessian, more than one Metric can be defined simultaneously, so in consecuence we need to define the elipsoid which defines the volume of maximal intersection
      * @param Hessian The hessian tensor condensed already computed
-     * @param AnisotropicRatio The anisotropic ratio
-     * @param ElementMinSize The min size of element
-     * @param ElementMaxSize The maximal size of the elements
+     * @param rAuxiliarHessianComputationVariables Struct containing several variables
      */
+    template<SizeType TDim>
     array_1d<double, 3 * (TDim - 1)> ComputeHessianMetricTensor(
         const Vector& rHessian,
-        const double AnisotropicRatio,
-        const double ElementMinSize, // This way we can impose as minimum as the previous size if we desire
-        const double ElementMaxSize // This way we can impose as maximum as the previous size if we desire
+        const AuxiliarHessianComputationVariables& rAuxiliarHessianComputationVariables
         );
 
     /**
@@ -256,11 +308,11 @@ private:
      */
     Interpolation ConvertInter(const std::string& Str)
     {
-        if(Str == "Constant" || Str == "CONSTANT")
+        if(Str == "Constant" || Str == "CONSTANT" || Str == "constant")
             return Interpolation::CONSTANT;
-        else if(Str == "Linear" || Str == "LINEAR")
+        else if(Str == "Linear" || Str == "LINEAR"  || Str == "linear")
             return Interpolation::LINEAR;
-        else if(Str == "Exponential" || Str == "EXPONENTIAL")
+        else if(Str == "Exponential" || Str == "EXPONENTIAL"  || Str == "exponential")
             return Interpolation::EXPONENTIAL;
         else
             return Interpolation::LINEAR;
@@ -279,6 +331,22 @@ private:
         const double BoundLayer,
         const Interpolation rInterpolation
         );
+
+    /**
+     * @brief This method is the responsible to compute the metric of the problem
+     */
+    template<SizeType TDim>
+    void CalculateMetric();
+
+    /**
+     * @brief This method provides the defaults parameters to avoid conflicts between the different constructors
+     */
+    Parameters GetDefaultParameters() const;
+
+    /**
+     * @brief This method provides the defaults parameters to avoid conflicts between the different constructors
+     */
+    void InitializeVariables(Parameters ThisParameters);
 
     ///@}
     ///@name Private  Access
@@ -316,14 +384,12 @@ private:
 ///@{
 
 /// input stream function
-template<unsigned int TDim, class TVarType>
 inline std::istream& operator >> (std::istream& rIStream,
-                                  ComputeHessianSolMetricProcess<TDim, TVarType>& rThis);
+                                  ComputeHessianSolMetricProcess& rThis);
 
 /// output stream function
-template<unsigned int TDim, class TVarType>
 inline std::ostream& operator << (std::ostream& rOStream,
-                                  const ComputeHessianSolMetricProcess<TDim, TVarType>& rThis)
+                                  const ComputeHessianSolMetricProcess& rThis)
 {
     rThis.PrintInfo(rOStream);
     rOStream << std::endl;

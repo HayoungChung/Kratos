@@ -821,7 +821,7 @@ public:
      * @param rShapeFunctionsValues the shape functions values in the current integration point
      * @param the current ProcessInfo instance
      */
-    KRATOS_DEPRECATED_MESSAGE("Please do not use this method\"")
+    KRATOS_DEPRECATED_MESSAGE("Please do not use this method - Use InitializeMaterialResponse instead\"")
     virtual void InitializeSolutionStep(const Properties& rMaterialProperties,
                                         const GeometryType& rElementGeometry, //this is just to give the array of nodes
                                         const Vector& rShapeFunctionsValues,
@@ -851,7 +851,7 @@ public:
      * @param rShapeFunctionsValues the shape functions values in the current integration point
      * @param the current ProcessInfo instance
      */
-    KRATOS_DEPRECATED_MESSAGE("Please do not use this method\"")
+    KRATOS_DEPRECATED_MESSAGE("Please do not use this method - There is no equivalent for this\"")
     virtual void InitializeNonLinearIteration(const Properties& rMaterialProperties,
 					      const GeometryType& rElementGeometry,
 					      const Vector& rShapeFunctionsValues,
@@ -867,7 +867,7 @@ public:
      * @param rShapeFunctionsValues the shape functions values in the current integration point
      * @param the current ProcessInfo instance
      */
-    KRATOS_DEPRECATED_MESSAGE("Please do not use this method\"")
+    KRATOS_DEPRECATED_MESSAGE("Please do not use this method - There is no equivalent for this\"")
     virtual void FinalizeNonLinearIteration(const Properties& rMaterialProperties,
 					    const GeometryType& rElementGeometry,
 					    const Vector& rShapeFunctionsValues,
@@ -911,15 +911,26 @@ public:
      */
     virtual void CalculateMaterialResponseCauchy (Parameters& rValues);
 
-
+    /**
+     * @brief If the CL requires to initialize the material response, called by the element in InitializeSolutionStep.
+     */
+    virtual bool RequiresInitializeMaterialResponse()
+    {
+        return true;
+    }
 
     /**
-     * Initialize the material response,  called by the element in FinalizeSolutionStep.
+     * Computes the material response in terms of Cauchy stresses and constitutive tensor, returns internal variables.
+     * @see Parameters
+     */
+    virtual void CalculateStressResponse (Parameters& rValues, Vector& rInternalVariables);
+
+    /**
+     * @brief Initialize the material response,  called by the element in InitializeSolutionStep.
      * @see Parameters
      * @see StressMeasures
      */
     void InitializeMaterialResponse (Parameters& rValues,const StressMeasure& rStressMeasure);
-
 
     /**
      * Initialize the material response in terms of 1st Piola-Kirchhoff stresses
@@ -949,10 +960,16 @@ public:
 
     virtual void InitializeMaterialResponseCauchy (Parameters& rValues);
 
-
+    /**
+     * @brief If the CL requires to initialize the material response, called by the element in InitializeSolutionStep.
+     */
+    virtual bool RequiresFinalizeMaterialResponse()
+    {
+        return true;
+    }
 
     /**
-     * Finalize the material response,  called by the element in FinalizeSolutionStep.
+     * @brief Finalize the material response,  called by the element in FinalizeSolutionStep.
      * @see Parameters
      * @see StressMeasures
      */
@@ -1466,8 +1483,8 @@ inline std::ostream & operator <<(std::ostream& rOStream,
 ///@}
 ///@} addtogroup block
 
-template class KRATOS_API(KRATOS_CORE) KratosComponents<ConstitutiveLaw >;
-template class KRATOS_API(KRATOS_CORE) KratosComponents< Variable<ConstitutiveLaw::Pointer> >;
+KRATOS_API_EXTERN template class KRATOS_API(KRATOS_CORE) KratosComponents<ConstitutiveLaw >;
+KRATOS_API_EXTERN template class KRATOS_API(KRATOS_CORE) KratosComponents< Variable<ConstitutiveLaw::Pointer> >;
 
 void KRATOS_API(KRATOS_CORE) AddKratosComponent(std::string const& Name, ConstitutiveLaw const& ThisComponent);
 void KRATOS_API(KRATOS_CORE) AddKratosComponent(std::string const& Name, Variable<ConstitutiveLaw::Pointer> const& ThisComponent);

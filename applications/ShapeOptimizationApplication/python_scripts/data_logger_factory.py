@@ -12,18 +12,21 @@
 # Making KratosMultiphysics backward compatible with python 2.6 and 2.7
 from __future__ import print_function, absolute_import, division
 
+# Kratos Core and Apps
+import KratosMultiphysics as KM
+
 # Additional imports
 import shutil
 import os
 
-from design_logger_gid import DesignLoggerGID
-from design_logger_unv import DesignLoggerUNV
-from design_logger_vtk import DesignLoggerVTK
+from .design_logger_gid import DesignLoggerGID
+from .design_logger_unv import DesignLoggerUNV
+from .design_logger_vtk import DesignLoggerVTK
 
-from value_logger_steepest_descent import ValueLoggerSteepestDescent
-from value_logger_penalized_projection import ValueLoggerPenalizedProjection
-from value_logger_trust_region import ValueLoggerTrustRegion
-from value_logger_bead_optimization import ValueLoggerBeadOptimization
+from .value_logger_steepest_descent import ValueLoggerSteepestDescent
+from .value_logger_penalized_projection import ValueLoggerPenalizedProjection
+from .value_logger_trust_region import ValueLoggerTrustRegion
+from .value_logger_bead_optimization import ValueLoggerBeadOptimization
 
 # ==============================================================================
 def CreateDataLogger( ModelPartController, Communicator, OptimizationSettings ):
@@ -36,6 +39,17 @@ class DataLogger():
         self.ModelPartController = ModelPartController
         self.Communicator = Communicator
         self.OptimizationSettings = OptimizationSettings
+
+        default_logger_settings = KM.Parameters("""
+        {
+            "output_directory"          : "Optimization_Results",
+            "optimization_log_filename" : "optimization_log",
+            "design_output_mode"        : "WriteOptimizationModelPart",
+            "nodal_results"             : [ "SHAPE_CHANGE" ],
+            "output_format"             : { "name": "vtk" }
+        }""")
+
+        self.OptimizationSettings["output"].ValidateAndAssignDefaults(default_logger_settings)
 
         self.ValueLogger = self.__CreateValueLogger()
         self.DesignLogger = self.__CreateDesignLogger()
@@ -81,16 +95,17 @@ class DataLogger():
         numberOfObjectives = self.OptimizationSettings["objectives"].size()
         numberOfConstraints = self.OptimizationSettings["constraints"].size()
 
-        print("\n> The following objectives are defined:\n")
+        KM.Logger.Print("")
+        KM.Logger.PrintInfo("ShapeOpt", "The following objectives are defined:\n")
         for objectiveNumber in range(numberOfObjectives):
-            print(self.OptimizationSettings["objectives"][objectiveNumber])
+            KM.Logger.Print(self.OptimizationSettings["objectives"][objectiveNumber])
 
         if numberOfConstraints != 0:
-            print("> The following constraints are defined:\n")
+            KM.Logger.PrintInfo("ShapeOpt", "The following constraints are defined:\n")
             for constraintNumber in range(numberOfConstraints):
-                print(self.OptimizationSettings["constraints"][constraintNumber],"\n")
+                KM.Logger.Print(self.OptimizationSettings["constraints"][constraintNumber],"\n")
         else:
-            print("> No constraints defined.\n")
+            KM.Logger.PrintInfo("ShapeOpt", "No constraints defined.\n")
 
     # --------------------------------------------------------------------------
     def InitializeDataLogging( self ):
@@ -111,11 +126,7 @@ class DataLogger():
         self.ValueLogger.FinalizeLogging()
 
     # --------------------------------------------------------------------------
-    def GetValue( self, key, iteration ):
-        return self.ValueLogger.GetValue(key, iteration)
-
-    # --------------------------------------------------------------------------
-    def GetValueHistory( self, key ):
-        return self.ValueLogger.GetValueHistory(key)
+    def GetValues( self, key ):
+        return self.ValueLogger.GetValues(key)
 
 # ==============================================================================

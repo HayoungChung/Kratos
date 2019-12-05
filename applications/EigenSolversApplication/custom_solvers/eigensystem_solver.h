@@ -16,13 +16,14 @@
 // External includes
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
-#if defined EIGEN_USE_MKL_ALL
-#include <Eigen/PardisoSupport>
-#endif
-#include <Eigen/Sparse>
 
 // Project includes
 #include "includes/define.h"
+#if defined EIGEN_USE_MKL_ALL
+#include "eigen_pardiso_ldlt_solver.h"
+#else // defined EIGEN_USE_MKL_ALL
+#include "eigen_sparse_lu_solver.h"
+#endif // defined EIGEN_USE_MKL_ALL
 #include "includes/kratos_parameters.h"
 #include "linear_solvers/iterative_solver.h"
 #include "utilities/openmp_utils.h"
@@ -32,9 +33,8 @@ namespace Kratos
 {
 
 template<
-    class TSolverType,
-    class TSparseSpaceType = typename TSolverType::TGlobalSpace,
-    class TDenseSpaceType = typename TSolverType::TLocalSpace,
+    class TSparseSpaceType = UblasSpace<double, CompressedMatrix, Vector>,
+    class TDenseSpaceType = UblasSpace<double, Matrix, Vector>,
     class TPreconditionerType = Preconditioner<TSparseSpaceType, TDenseSpaceType>,
     class TReordererType = Reorderer<TSparseSpaceType, TDenseSpaceType>>
 class EigensystemSolver
@@ -115,10 +115,7 @@ class EigensystemSolver
 
         double start_time = OpenMPUtils::GetCurrentTime();
 
-        if (echo_level > 0) {
-            std::cout << "EigensystemSolver: Start"  << std::endl;
-        }
-
+        KRATOS_INFO_IF("EigensystemSolver:", echo_level > 0) << "Start"  << std::endl;
 
         // --- calculation
 
@@ -179,8 +176,13 @@ class EigensystemSolver
             r(ij, j) = 1.0;
         }
 
-        typename TSolverType::TSolver solver;
-        solver.compute(a);
+        #if defined USE_EIGEN_MKL
+        EigenPardisoLDLTSolver<double> solver;
+        #else  // defined USE_EIGEN_MKL
+        EigenSparseLUSolver<double> solver;
+        #endif // defined USE_EIGEN_MKL
+
+        solver.Compute(a);
 
         int iteration = 0;
 
@@ -189,13 +191,11 @@ class EigensystemSolver
         do {
             iteration++;
 
-            if (echo_level > 1) {
-                std::cout << "EigensystemSolver: Iteration " << iteration <<std::endl;
-            }
+            KRATOS_INFO_IF("EigensystemSolver:", echo_level > 1) << "Iteration " << iteration <<std::endl;
 
             for (int j = 0; j != nc; ++j) {
                 tmp = r.col(j);
-                tt = solver.solve(tmp);
+                solver.Solve(tmp, tt);
 
                 for (int i = j; i != nc; ++i) {
                     ar(i, j) = r.col(i).dot(tt);
@@ -217,7 +217,7 @@ class EigensystemSolver
             eig.compute(ar, br);
 
             if(eig.info() != Eigen::Success) {
-                std::cout << "EigensystemSolver: Eigen solution was not successful!" << std::endl;
+                KRATOS_WARNING("EigensystemSolver:") << "Eigen solution was not successful!" << std::endl;
                 break;
             }
 
@@ -231,21 +231,16 @@ class EigensystemSolver
 
                 if (rtolv > tolerance) {
                     is_converged = false;
-                    if (echo_level > 1)
-                        std::cout << "EigensystemSolver: Convergence not reached for eigenvalue #"<<i+1<<": " << rtolv <<"." << std::endl;
+                    KRATOS_WARNING_IF("EigensystemSolver:", echo_level > 1) << "Convergence not reached for eigenvalue #"<<i+1<<": " << rtolv <<"." << std::endl;
                     break;
                 }
             }
 
             if (is_converged) {
-                if (echo_level > 0) {
-                    std::cout << "EigensystemSolver: Convergence reached after " << iteration << " iterations within a relative tolerance: " << tolerance << std::endl;
-                }
+                KRATOS_INFO_IF("EigensystemSolver:", echo_level > 0) << "Convergence reached after " << iteration << " iterations within a relative tolerance: " << tolerance << std::endl;
                 break;
             } else if (iteration >= max_iteration) {
-                if (echo_level > 0) {
-                    std::cout << "EigensystemSolver: Convergence not reached in " << max_iteration << " iterations." << std::endl;
-                }
+                KRATOS_INFO_IF("EigensystemSolver:", echo_level > 0) << "Convergence not reached in " << max_iteration << " iterations." << std::endl;
                 break;
             }
 
@@ -267,7 +262,8 @@ class EigensystemSolver
 
         for (int i = 0; i != nroot; ++i) {
             tmp = r.col(i);
-            eigvecs.row(i) = solver.solve(tmp).normalized();
+            solver.Solve(tmp, eigvecs.row(i));
+            eigvecs.row(i).normalize();
         }
 
         // --- normalization
@@ -280,8 +276,7 @@ class EigensystemSolver
                 const double tmp = eigvecs.row(i) * b * eigvecs.row(i).transpose();
                 const double factor = 1.0 / std::sqrt(tmp);
                 eigvecs.row(i) *=  factor;
-                if (echo_level > 0)
-                    std::cout << "EigensystemSolver: Eigenvector " << i+1 << " is normalized - used factor: " << factor << std::endl;
+                KRATOS_INFO_IF("EigensystemSolver:", echo_level > 0) << "Eigenvector " << i+1 << " is normalized - used factor: " << factor << std::endl;
             }
         }
 
@@ -292,7 +287,7 @@ class EigensystemSolver
 
             Eigen::IOFormat fmt(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", ", ", "", "", "[ ", " ]");
 
-            std::cout << "EigensystemSolver: Completed in " << duration << " seconds" << std::endl
+            KRATOS_INFO("EigensystemSolver:") << "Completed in " << duration << " seconds" << std::endl
                       << "                   Eigenvalues = " << eigvals.transpose().format(fmt) << std::endl;
         }
     }

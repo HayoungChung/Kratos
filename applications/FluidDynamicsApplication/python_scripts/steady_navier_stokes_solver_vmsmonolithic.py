@@ -3,16 +3,13 @@ from __future__ import print_function, absolute_import, division  # makes Kratos
 import KratosMultiphysics
 import KratosMultiphysics.FluidDynamicsApplication as KratosCFD
 
-## Check that KratosMultiphysics was imported in the main script
-KratosMultiphysics.CheckForPreviousImport()
-
 ## Import base class file
-import navier_stokes_solver_vmsmonolithic
+from KratosMultiphysics.FluidDynamicsApplication.navier_stokes_solver_vmsmonolithic import NavierStokesSolverMonolithic
 
 def CreateSolver(model, custom_settings):
     return SteadyNavierStokesSolver_VMSMonolithic(model, custom_settings)
 
-class SteadyNavierStokesSolver_VMSMonolithic(navier_stokes_solver_vmsmonolithic.NavierStokesSolverMonolithic):
+class SteadyNavierStokesSolver_VMSMonolithic(NavierStokesSolverMonolithic):
 
     def __init__(self, model, custom_settings):
 

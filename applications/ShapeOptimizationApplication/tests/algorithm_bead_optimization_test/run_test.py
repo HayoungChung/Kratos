@@ -1,20 +1,19 @@
 # Import Kratos core and apps
-from KratosMultiphysics import *
-from KratosMultiphysics.ShapeOptimizationApplication import *
+import KratosMultiphysics as KM
 
 # Additional imports
+from KratosMultiphysics.ShapeOptimizationApplication import optimizer_factory
 from KratosMultiphysics.KratosUnittest import TestCase
 import KratosMultiphysics.kratos_utilities as kratos_utilities
 import csv, os
 
 # Read parameters
 with open("optimization_parameters.json",'r') as parameter_file:
-    parameters = Parameters(parameter_file.read())
+    parameters = KM.Parameters(parameter_file.read())
 
-model = Model()
+model = KM.Model()
 
 # Create optimizer and perform optimization
-import optimizer_factory
 optimizer = optimizer_factory.CreateOptimizer(parameters["optimization_settings"], model)
 optimizer.Optimize()
 
@@ -22,14 +21,14 @@ optimizer.Optimize()
 # Test results and clean directory
 # =======================================================================================================
 output_directory = parameters["optimization_settings"]["output"]["output_directory"].GetString()
-response_log_filename = parameters["optimization_settings"]["output"]["response_log_filename"].GetString() + ".csv"
+optimization_log_filename = parameters["optimization_settings"]["output"]["optimization_log_filename"].GetString() + ".csv"
 optimization_model_part_name = parameters["optimization_settings"]["model_settings"]["model_part_name"].GetString()
 
 # Testing
 original_directory = os.getcwd()
 os.chdir(output_directory)
 
-with open(response_log_filename, 'r') as csvfile:
+with open(optimization_log_filename, 'r') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     last_line = None
     for line in reader:
@@ -40,9 +39,9 @@ with open(response_log_filename, 'r') as csvfile:
 
     resulting_lagrange_value = float(last_line[3].strip())
     resulting_objective_value = float(last_line[5].strip())
-    resulting_penalty_value = float(last_line[9].strip())
-    resulting_penalty_scaling = float(last_line[10].strip())
-    resulting_penalty_factor = float(last_line[11].strip())
+    resulting_penalty_value = float(last_line[10].strip())
+    resulting_penalty_scaling = float(last_line[11].strip())
+    resulting_penalty_factor = float(last_line[12].strip())
 
     # Check against specifications
     TestCase().assertAlmostEqual(resulting_lagrange_value,  2.46402E-02,5)

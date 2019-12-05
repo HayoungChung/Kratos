@@ -77,7 +77,7 @@ UpdatedLagrangianElement&  UpdatedLagrangianElement::operator=(UpdatedLagrangian
 
 Element::Pointer UpdatedLagrangianElement::Create( IndexType NewId, NodesArrayType const& rThisNodes, PropertiesType::Pointer pProperties ) const
 {
-    return Kratos::make_shared< UpdatedLagrangianElement >(NewId, GetGeometry().Create(rThisNodes), pProperties);
+    return Kratos::make_intrusive< UpdatedLagrangianElement >(NewId, GetGeometry().Create(rThisNodes), pProperties);
 }
 
 
@@ -124,7 +124,7 @@ Element::Pointer UpdatedLagrangianElement::Clone( IndexType NewId, NodesArrayTyp
     NewElement.SetData(this->GetData());
     NewElement.SetFlags(this->GetFlags());
 
-    return Kratos::make_shared< UpdatedLagrangianElement >(NewElement);
+    return Kratos::make_intrusive< UpdatedLagrangianElement >(NewElement);
 }
 
 //*******************************DESTRUCTOR*******************************************
@@ -244,7 +244,7 @@ void UpdatedLagrangianElement::InitializeElementData (ElementDataType& rVariable
     LargeDisplacementElement::InitializeElementData(rVariables,rCurrentProcessInfo);
 
     //Calculate Delta Position
-    rVariables.DeltaPosition = this->CalculateDeltaPosition(rVariables.DeltaPosition);
+    ElementUtilities::CalculateDeltaPosition(rVariables.DeltaPosition,this->GetGeometry());
 
     //set variables including all integration points values
 

@@ -17,7 +17,6 @@
 
 // Project includes
 #include "testing/testing.h"
-#include "utilities/math_utils.h"
 #include "custom_utilities/mpm_stress_principal_invariants_utility.h"
 
 namespace Kratos
@@ -90,7 +89,7 @@ namespace Testing
     // Generate dummy direction matrix with random values
     Matrix CreateRandomDirectionMatrix()
     {
-        Matrix direction_dummy = ZeroMatrix(3);
+        Matrix direction_dummy = ZeroMatrix(3,3);
         direction_dummy(0,0) = 1.0;
         direction_dummy(0,1) = 2.0;
         direction_dummy(0,2) = 3.0;

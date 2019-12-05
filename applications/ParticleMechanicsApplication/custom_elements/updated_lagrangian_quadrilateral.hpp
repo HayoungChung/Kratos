@@ -66,7 +66,7 @@ public:
     ///Type definition for integration methods
     typedef GeometryData::IntegrationMethod IntegrationMethod;
     /// Counted pointer of LargeDisplacementElement
-    KRATOS_CLASS_POINTER_DEFINITION( UpdatedLagrangianQuadrilateral );
+    KRATOS_CLASS_INTRUSIVE_POINTER_DEFINITION( UpdatedLagrangianQuadrilateral );
     ///@}
 
 protected:
@@ -89,7 +89,6 @@ protected:
     private:
 
         //variables including all integration points
-        //const GeometryType::ShapeFunctionsGradientsType* pDN_De;
         const Matrix* pDN_De;
         const Vector* pNcontainer;
 
@@ -97,18 +96,16 @@ protected:
 
         StressMeasureType StressMeasure;
 
-        //for axisymmetric use only
+        // For axisymmetric use only
         double  CurrentRadius;
         double  ReferenceRadius;
 
-        //general variables for large displacement use
+        // General variables for large displacement use
         double  detF;
         double  detF0;
         double  detFT;
-        double  detJ;
         Vector  StrainVector;
         Vector  StressVector;
-        Vector  IsoStressVector;
         Vector  N;
         Matrix  B;
         Matrix  F;
@@ -117,16 +114,9 @@ protected:
         Matrix  DN_DX;
         Matrix  DN_De;
         Matrix  ConstitutiveMatrix;
-        Matrix Normal;
 
-        //variables including all integration points
-        //GeometryType::JacobiansType J;
-        //GeometryType::JacobiansType j;
-        Matrix J;
-        Matrix j;
-        Matrix  DeltaPosition;
+        // Variables including all integration points
         Matrix CurrentDisp;
-        Matrix PreviousDisp;
 
         /**
          * sets the value of a specified pointer variable
@@ -350,16 +340,6 @@ public:
     void InitializeSolutionStep(ProcessInfo& rCurrentProcessInfo) override;
 
     /**
-     * this is called for non-linear analysis at the beginning of the iteration process
-     */
-    void InitializeNonLinearIteration(ProcessInfo& rCurrentProcessInfo) override;
-
-    /**
-     * this is called for non-linear analysis at the beginning of the iteration process
-     */
-    void FinalizeNonLinearIteration(ProcessInfo& rCurrentProcessInfo) override;
-
-    /**
      * Called at the end of eahc solution step
      */
     void FinalizeSolutionStep(ProcessInfo& rCurrentProcessInfo) override;
@@ -503,15 +483,6 @@ protected:
      * Container for the total deformation gradient determinants
      */
     double mDeterminantF0;
-    /**
-     * Container for historical inverse of Jacobian at reference configuration invJ0
-     */
-    Matrix mInverseJ0;
-    Matrix mInverseJ;
-    /**
-     * Container for the total Jacobian determinants
-     */
-    double mDeterminantJ0;
 
     /**
      * Container for constitutive law instances on each integration point

@@ -59,12 +59,22 @@ enum WriteConditionsFlag {WriteConditions, WriteElementsOnly, WriteConditionsOnl
 enum MultiFileFlag {SingleFile, MultipleFiles};
 
 
+class KRATOS_API(KRATOS_CORE) GidIOBase : public IO {
+
+    protected:
+    /**
+     * Counter of live GidIO instances
+     * (to ensure GiD_PostInit and GiD_PostDone are properly called)
+     */
+    static int msLiveInstances;
+};
+
 /**
  * This class defines an interface to the GiDPost library
  * in order to provide GiD compliant I/O functionality
  */
 template<class TGaussPointContainer = GidGaussPointsContainer, class TMeshContainer = GidMeshContainer>
-class GidIO : public IO
+class KRATOS_API(KRATOS_CORE) GidIO : public GidIOBase
 {
 public:
     ///pointer definition of GidIO
@@ -100,11 +110,11 @@ public:
         SetUpMeshContainers();
         SetUpGaussPointContainers();
 
-        if (msLiveInstances == 0)
+        if (GidIOBase::msLiveInstances == 0)
         {
           GiD_PostInit();
         }
-        msLiveInstances += 1;
+        GidIOBase::msLiveInstances += 1;
     }
 
     ///Destructor.
@@ -118,8 +128,8 @@ public:
             mResultFileOpen = false;
         }
 
-        msLiveInstances -= 1;
-        if (msLiveInstances == 0)
+        GidIOBase::msLiveInstances -= 1;
+        if (GidIOBase::msLiveInstances == 0)
         {
           GiD_PostDone();
         }
@@ -195,6 +205,9 @@ public:
         mGidMeshContainers.push_back( TMeshContainer(
                                           GeometryData::Kratos_Line3D3,
                                           GiD_Linear, "Kratos_Line3D3_Mesh" ) );
+        mGidMeshContainers.push_back( TMeshContainer(
+                                          GeometryData::Kratos_Point2D,
+                                          GiD_Point, "Kratos_Point2D_Mesh" ) );
         mGidMeshContainers.push_back( TMeshContainer(
                                           GeometryData::Kratos_Point3D,
                                           GiD_Point, "Kratos_Point3D_Mesh" ) );
@@ -591,7 +604,7 @@ public:
     /**
      * Turn back information as a string.
      */
-    virtual std::string Info() const
+    std::string Info() const override
     {
         return "gid io";
     }
@@ -599,7 +612,7 @@ public:
     /**
      * Print information about this object.
      */
-    virtual void PrintInfo(std::ostream& rOStream) const
+    void PrintInfo(std::ostream& rOStream) const override
     {
         rOStream << Info();
     }
@@ -607,7 +620,7 @@ public:
     /**
      * Print object's data.
      */
-    virtual void PrintData(std::ostream& rOStream) const
+    void PrintData(std::ostream& rOStream) const override
     {
     }
 
@@ -635,7 +648,7 @@ public:
             for ( MeshType::ElementIterator element_iterator = rThisMesh.ElementsBegin();
                     element_iterator != rThisMesh.ElementsEnd(); ++element_iterator )
             {
-                for ( typename std::vector<TGaussPointContainer>::iterator it =
+                for ( auto it =
                             mGidGaussPointContainers.begin();
                         it != mGidGaussPointContainers.end(); it++ )
                 {
@@ -652,7 +665,7 @@ public:
                         rThisMesh.ConditionsBegin(); conditions_iterator
                     != rThisMesh.ConditionsEnd(); conditions_iterator++ )
             {
-                for ( typename std::vector<TGaussPointContainer>::iterator it =
+                for ( auto it =
                             mGidGaussPointContainers.begin();
                         it != mGidGaussPointContainers.end(); it++ )
                 {
@@ -663,7 +676,7 @@ public:
             }
 
         // Writing gauss points definitions
-        for ( typename std::vector<TGaussPointContainer>::iterator it = mGidGaussPointContainers.begin();
+        for ( auto it = mGidGaussPointContainers.begin();
               it != mGidGaussPointContainers.end(); it++ )
         {
             it->WriteGaussPoints(mResultFile);
@@ -682,7 +695,7 @@ public:
             mResultFileOpen = false;
         }
         //resetting gauss point containers
-        for ( typename std::vector<TGaussPointContainer>::iterator it =
+        for ( auto it =
                     mGidGaussPointContainers.begin();
                 it != mGidGaussPointContainers.end(); it++ )
         {
@@ -743,7 +756,7 @@ public:
 
     }
     /**
-     * writes nodal results for variables of type double
+     * writes nodal results for variables of type int
      */
     void WriteNodalResults( Variable<int> const& rVariable,
                             NodesContainerType& rNodes, double SolutionTag,
@@ -952,6 +965,25 @@ public:
                          GiD_OnNodes, NULL, NULL, 0, NULL );
         for ( NodesContainerType::iterator it_node = rNodes.begin();
                 it_node != rNodes.end() ; ++it_node)
+            GiD_fWriteScalar( mResultFile, it_node->Id(), it_node->GetValue(rVariable) );
+        GiD_fEndResult(mResultFile);
+
+        Timer::Stop("Writing Results");
+
+    }
+
+    /**
+     * writes nodal results for variables of type int
+     */
+    void WriteNodalResultsNonHistorical( Variable<int> const& rVariable, NodesContainerType& rNodes, double SolutionTag)
+    {
+
+        Timer::Start("Writing Results");
+        GiD_fBeginResult( mResultFile, (char*)(rVariable.Name().c_str()), "Kratos",
+                          SolutionTag, GiD_Scalar,
+                          GiD_OnNodes, NULL, NULL, 0, NULL );
+        for ( NodesContainerType::iterator it_node = rNodes.begin();
+              it_node != rNodes.end() ; ++it_node)
             GiD_fWriteScalar( mResultFile, it_node->Id(), it_node->GetValue(rVariable) );
         GiD_fEndResult(mResultFile);
 
@@ -1339,7 +1371,7 @@ public:
      * @param deformed_flag states whether the mesh should be written in deformed configuration
      * @param conditions_flag states whether conditions should also be written
      */
-    void WriteMesh( MeshType& rThisMesh )
+    void WriteMesh( MeshType& rThisMesh ) override
     {
         KRATOS_TRY
 
@@ -1407,22 +1439,18 @@ public:
     }
 
     /**
-     * Prints variables of type double on gauss points of the complete mesh
+     * Prints variables of type int on gauss points of the complete mesh
      * @param rVariable the given variable name
      * @param rModelPart the current model part
      */
-    virtual void PrintOnGaussPoints( const Variable<double>& rVariable, ModelPart& rModelPart,
+    virtual void PrintOnGaussPoints( const Variable<bool>& rVariable, ModelPart& rModelPart,
                                      double SolutionTag, int ValueIndex = 0 )
     {
         KRATOS_TRY;
 
         Timer::Start("Writing Results");
 
-        for ( typename std::vector<TGaussPointContainer>::iterator it =
-                    mGidGaussPointContainers.begin();
-                it != mGidGaussPointContainers.end(); it++ )
-        {
-
+        for ( auto it = mGidGaussPointContainers.begin(); it != mGidGaussPointContainers.end(); it++ ) {
             it->PrintResults( mResultFile, rVariable, rModelPart, SolutionTag, ValueIndex );
         }
 
@@ -1443,11 +1471,28 @@ public:
 
         Timer::Start("Writing Results");
 
-        for ( typename std::vector<TGaussPointContainer>::iterator it =
-                    mGidGaussPointContainers.begin();
-                it != mGidGaussPointContainers.end(); it++ )
-        {
+        for ( auto it = mGidGaussPointContainers.begin(); it != mGidGaussPointContainers.end(); it++ ) {
+            it->PrintResults( mResultFile, rVariable, rModelPart, SolutionTag, ValueIndex );
+        }
 
+        Timer::Stop("Writing Results");
+
+        KRATOS_CATCH("");
+    }
+
+    /**
+     * Prints variables of type double on gauss points of the complete mesh
+     * @param rVariable the given variable name
+     * @param rModelPart the current model part
+     */
+    virtual void PrintOnGaussPoints( const Variable<double>& rVariable, ModelPart& rModelPart,
+                                     double SolutionTag, int ValueIndex = 0 )
+    {
+        KRATOS_TRY;
+
+        Timer::Start("Writing Results");
+
+        for ( auto it = mGidGaussPointContainers.begin(); it != mGidGaussPointContainers.end(); it++ ) {
             it->PrintResults( mResultFile, rVariable, rModelPart, SolutionTag, ValueIndex );
         }
 
@@ -1467,10 +1512,7 @@ public:
 
         Timer::Start("Writing Results");
 
-        for ( typename std::vector<TGaussPointContainer>::iterator it =
-                    mGidGaussPointContainers.begin();
-                it != mGidGaussPointContainers.end(); it++ )
-        {
+        for ( auto it = mGidGaussPointContainers.begin(); it != mGidGaussPointContainers.end(); it++ ) {
             it->PrintResults(  mResultFile, rVariable, rModelPart, SolutionTag, ValueIndex );
         }
 
@@ -1490,12 +1532,8 @@ public:
         KRATOS_TRY;
         Timer::Start("Writing Results");
 
-        for ( typename std::vector<TGaussPointContainer>::iterator it =
-                    mGidGaussPointContainers.begin();
-                it != mGidGaussPointContainers.end(); it++ )
-        {
+        for ( auto it = mGidGaussPointContainers.begin(); it != mGidGaussPointContainers.end(); it++ ) {
             it->PrintResults(  mResultFile, rVariable, rModelPart, SolutionTag, ValueIndex );
-
         }
 
         Timer::Stop("Writing Results");
@@ -1513,11 +1551,8 @@ public:
     {
         KRATOS_TRY;
         Timer::Start("Writing Results");
-        for ( typename std::vector<TGaussPointContainer>::iterator it =
-                    mGidGaussPointContainers.begin();
-                it != mGidGaussPointContainers.end(); it++ )
-        {
 
+        for ( auto it = mGidGaussPointContainers.begin(); it != mGidGaussPointContainers.end(); it++ ) {
             it->PrintResults(  mResultFile, rVariable, rModelPart, SolutionTag, ValueIndex );
         }
 
@@ -1553,13 +1588,6 @@ protected:
     bool mResultFileOpen;
 
 private:
-
-    /**
-     * Counter of live GidIO instances
-     * (to ensure GiD_PostInit and GiD_PostDone are properly called)
-     */
-    static int msLiveInstances;
-
     /**
      * assignment operator
      */
@@ -1621,9 +1649,6 @@ inline std::ostream& operator << (std::ostream& rOStream, const GidIO<>& rThis)
     rThis.PrintData(rOStream);
     return rOStream;
 }
-
-template< class TGaussPointContainer, class TMeshContainer >
-int GidIO<TGaussPointContainer,TMeshContainer>::msLiveInstances = 0;
 
 }// namespace Kratos.
 

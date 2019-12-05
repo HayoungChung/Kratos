@@ -1,6 +1,6 @@
 {
     "properties" : [{
-        "model_part_name" : "Parts_Central",
+        "model_part_name" : "Structure.Parts_Central",
         "properties_id"   : 1,
         "Material"        : {
             "constitutive_law" : {
@@ -12,7 +12,7 @@
                 "DENSITY"                   : 7850.0,
                 "YOUNG_MODULUS"             : 210e9,
                 "POISSON_RATIO"             : 0.29,
-                "FRACTURE_ENERGY"           : 1e4,
+                "FRACTURE_ENERGY"           : 1e5,
                 "YIELD_STRESS_COMPRESSION"  : 200.0e6,
                 "YIELD_STRESS_TENSION"      : 200.0e6,
                 "HARDENING_CURVE"           : 1,

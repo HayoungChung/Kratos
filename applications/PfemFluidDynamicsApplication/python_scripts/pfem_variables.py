@@ -4,9 +4,6 @@ import os
 import KratosMultiphysics
 import KratosMultiphysics.DelaunayMeshingApplication  as KratosDelaunay
 
-# Check that KratosMultiphysics was imported in the main script
-KratosMultiphysics.CheckForPreviousImport()
-
 
 def AddVariables(main_model_part):
   
@@ -20,11 +17,6 @@ def AddVariables(main_model_part):
     main_model_part.AddNodalSolutionStepVariable(KratosDelaunay.SHRINK_FACTOR);
     main_model_part.AddNodalSolutionStepVariable(KratosDelaunay.MEAN_ERROR);
     main_model_part.AddNodalSolutionStepVariable(KratosDelaunay.RIGID_WALL);
-       
-    #transfer variables
-    main_model_part.AddNodalSolutionStepVariable(KratosMultiphysics.DETERMINANT_F);
-    main_model_part.AddNodalSolutionStepVariable(KratosMultiphysics.CAUCHY_STRESS_VECTOR)
-    main_model_part.AddNodalSolutionStepVariable(KratosMultiphysics.DEFORMATION_GRADIENT)
             
     print("::[Pfem Extra Vars]:: Variables ADDED")
 

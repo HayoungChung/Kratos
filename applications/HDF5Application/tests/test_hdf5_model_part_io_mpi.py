@@ -1,10 +1,9 @@
 import os
 from KratosMultiphysics import *
 import KratosMultiphysics.mpi as KratosMPI
-import KratosMultiphysics.MetisApplication as KratosMetis
-import KratosMultiphysics.TrilinosApplication as KratosTrilinos
 from KratosMultiphysics.HDF5Application import *
 import KratosMultiphysics.KratosUnittest as KratosUnittest
+import KratosMultiphysics.kratos_utilities as kratos_utilities
 import random, math
 
 class ControlledExecutionScope:
@@ -23,10 +22,6 @@ class TestCase(KratosUnittest.TestCase):
     def setUp(self):
         pass
 
-    def _remove_file(self, file_path):
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-
     def _initialize_model_part(self, model_part):
         # Add variables.
         model_part.AddNodalSolutionStepVariable(DISPLACEMENT) # array_1d
@@ -38,8 +33,8 @@ class TestCase(KratosUnittest.TestCase):
         model_part.AddNodalSolutionStepVariable(ACTIVATION_LEVEL) # int
         model_part.AddNodalSolutionStepVariable(PARTITION_INDEX)
         # Make a mesh out of two structured rings (inner triangles, outer quads).
-        num_proc = KratosMPI.mpi.size
-        my_pid = KratosMPI.mpi.rank
+        num_proc = DataCommunicator.GetDefault().Size()
+        my_pid = DataCommunicator.GetDefault().Rank()
         my_num_quad = 20 # user-defined.
         my_num_tri = 2 * my_num_quad # splits each quad into 2 triangles.
         num_local_nodes = 3 * my_num_quad
@@ -104,7 +99,7 @@ class TestCase(KratosUnittest.TestCase):
             node.SetSolutionStepValue(VISCOSITY, random.random())
             node.SetSolutionStepValue(DENSITY, random.random())
             node.SetSolutionStepValue(ACTIVATION_LEVEL, random.randint(-100, 100))
-        KratosTrilinos.ParallelFillCommunicator(model_part.GetRootModelPart()).Execute()
+        KratosMPI.ParallelFillCommunicator(model_part.GetRootModelPart()).Execute()
         model_part.GetCommunicator().SynchronizeNodalSolutionStepsData()
         # Set some process info variables.
         model_part.ProcessInfo[DOMAIN_SIZE] = 3 # int
@@ -142,16 +137,17 @@ class TestCase(KratosUnittest.TestCase):
 
     def test_HDF5ModelPartIO(self):
         with ControlledExecutionScope(os.path.dirname(os.path.realpath(__file__))):
-            write_model_part = ModelPart("write")
-            KratosMetis.SetMPICommunicatorProcess(write_model_part).Execute()
+            current_model = Model()
+            write_model_part = current_model.CreateModelPart("write")
+            KratosMPI.ModelPartCommunicatorUtilities.SetMPICommunicator(write_model_part)
             self._initialize_model_part(write_model_part)
             hdf5_file = self._get_file()
             hdf5_model_part_io = self._get_model_part_io(hdf5_file)
             hdf5_model_part_io.WriteModelPart(write_model_part)
-            read_model_part = ModelPart("read")
-            KratosMetis.SetMPICommunicatorProcess(read_model_part).Execute()
+            read_model_part = current_model.CreateModelPart("read")
+            KratosMPI.ModelPartCommunicatorUtilities.SetMPICommunicator(read_model_part)
             hdf5_model_part_io.ReadModelPart(read_model_part)
-            KratosTrilinos.ParallelFillCommunicator(read_model_part.GetRootModelPart()).Execute()
+            KratosMPI.ParallelFillCommunicator(read_model_part.GetRootModelPart()).Execute()
             read_model_part.GetCommunicator().SynchronizeNodalSolutionStepsData()
             # Check nodes (node order should be preserved on read/write to ensure consistency with nodal results)
             self.assertEqual(read_model_part.NumberOfNodes(), write_model_part.NumberOfNodes())
@@ -195,21 +191,21 @@ class TestCase(KratosUnittest.TestCase):
             for i in range(read_matrix.Size1()):
                 for j in range(read_matrix.Size2()):
                     self.assertEqual(read_matrix[i,j], write_matrix[i,j])
-            if KratosMPI.mpi.rank == 0:
-                self._remove_file("test_hdf5_model_part_io_mpi.h5")
-    
+            kratos_utilities.DeleteFileIfExisting("test_hdf5_model_part_io_mpi.h5")
+
     def test_HDF5NodalSolutionStepDataIO(self):
         with ControlledExecutionScope(os.path.dirname(os.path.realpath(__file__))):
-            write_model_part = ModelPart("write")
-            KratosMetis.SetMPICommunicatorProcess(write_model_part).Execute()
+            current_model = Model()
+            write_model_part = current_model.CreateModelPart("write")
+            KratosMPI.ModelPartCommunicatorUtilities.SetMPICommunicator(write_model_part)
             self._initialize_model_part(write_model_part)
             hdf5_file = self._get_file()
             hdf5_model_part_io = self._get_model_part_io(hdf5_file)
             hdf5_model_part_io.WriteModelPart(write_model_part)
-            read_model_part = ModelPart("read")
-            KratosMetis.SetMPICommunicatorProcess(read_model_part).Execute()
+            read_model_part = current_model.CreateModelPart("read")
+            KratosMPI.ModelPartCommunicatorUtilities.SetMPICommunicator(read_model_part)
             hdf5_model_part_io.ReadModelPart(read_model_part)
-            KratosTrilinos.ParallelFillCommunicator(read_model_part.GetRootModelPart()).Execute()
+            KratosMPI.ParallelFillCommunicator(read_model_part.GetRootModelPart()).Execute()
             hdf5_nodal_solution_step_data_io = self._get_nodal_solution_step_data_io(hdf5_file)
             hdf5_nodal_solution_step_data_io.WriteNodalResults(write_model_part.Nodes, 0)
             hdf5_nodal_solution_step_data_io.ReadNodalResults(read_model_part.Nodes, read_model_part.GetCommunicator(), 0)
@@ -230,8 +226,7 @@ class TestCase(KratosUnittest.TestCase):
                 self.assertEqual(read_node.GetSolutionStepValue(DENSITY), write_node.GetSolutionStepValue(DENSITY))
                 self.assertEqual(read_node.GetSolutionStepValue(ACTIVATION_LEVEL), write_node.GetSolutionStepValue(ACTIVATION_LEVEL))
                 self.assertEqual(read_node.GetSolutionStepValue(PARTITION_INDEX), write_node.GetSolutionStepValue(PARTITION_INDEX))
-            if KratosMPI.mpi.rank == 0:
-                self._remove_file("test_hdf5_model_part_io_mpi.h5")
+            kratos_utilities.DeleteFileIfExisting("test_hdf5_model_part_io_mpi.h5")
 
     def tearDown(self):
         pass

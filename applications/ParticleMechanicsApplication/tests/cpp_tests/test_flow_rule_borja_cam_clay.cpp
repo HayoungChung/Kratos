@@ -16,7 +16,6 @@
 // External includes
 
 // Project includes
-#include "includes/process_info.h"
 #include "testing/testing.h"
 
 // Application includes
@@ -42,15 +41,15 @@ namespace Testing
 
     typedef Node<3> NodeType;
 
-    typedef MPMHardeningLaw HL;
+    typedef ParticleHardeningLaw HL;
 
     typedef CamClayHardeningLaw CCHL;
 
-    typedef MPMYieldCriterion YC;
+    typedef ParticleYieldCriterion YC;
 
     typedef ModifiedCamClayYieldCriterion MCCYC;
 
-    typedef MPMFlowRule FR;
+    typedef ParticleFlowRule FR;
 
     typedef BorjaCamClayPlasticFlowRule BCCFR;
 
@@ -58,8 +57,8 @@ namespace Testing
         Matrix& rStress, Matrix& rStrain,
         Properties &rMaterialProperties)
     {
-        rStress = ZeroMatrix(3);
-        rStrain = ZeroMatrix(3);
+        rStress = ZeroMatrix(3,3);
+        rStrain = ZeroMatrix(3,3);
         rStrain(0,0) = 5.5e-2;
         rStrain(1,1) = -12.2e-2;
         rStrain(2,2) = 8.3e-2;

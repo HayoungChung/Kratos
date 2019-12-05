@@ -18,7 +18,7 @@
 #include "includes/cfd_variables.h"
 #include "includes/checks.h"
 #include "custom_constitutive/newtonian_two_fluid_3d_law.h"
-#include "custom_utilities/element_size_calculator.h"
+#include "utilities/element_size_calculator.h"
 
 namespace Kratos
 {
@@ -55,8 +55,8 @@ std::string NewtonianTwoFluid3DLaw::Info() const {
 }
 
 
-double NewtonianTwoFluid3DLaw::ComputeEffectiveViscosity(ConstitutiveLaw::Parameters& rParameters) const {
-
+double NewtonianTwoFluid3DLaw::GetEffectiveViscosity(ConstitutiveLaw::Parameters& rParameters) const
+{
     double viscosity;
     EvaluateInPoint(viscosity, DYNAMIC_VISCOSITY, rParameters);
     const Properties& prop = rParameters.GetMaterialProperties();
@@ -69,8 +69,8 @@ double NewtonianTwoFluid3DLaw::ComputeEffectiveViscosity(ConstitutiveLaw::Parame
             const double strain_rate = EquivalentStrainRate(rParameters);
             const BoundedMatrix<double, 4, 3>& DN_DX = rParameters.GetShapeFunctionsDerivatives();
             const double elem_size = ElementSizeCalculator<3,4>::GradientsElementSize(DN_DX);
-            double length_scale = csmag * elem_size;
-            length_scale *= length_scale;
+            const double length_scale = std::pow(csmag * elem_size, 2);
+            // length_scale *= length_scale;
             viscosity += 2.0*length_scale * strain_rate * density;
         }
     }
@@ -104,7 +104,7 @@ void NewtonianTwoFluid3DLaw::EvaluateInPoint(double& rResult,
 
 
 double NewtonianTwoFluid3DLaw::EquivalentStrainRate(ConstitutiveLaw::Parameters& rParameters) const {
-    
+
     const Vector& S = rParameters.GetStrainVector();
 
     // Norm of symetric gradient (cross terms don't get the 2)

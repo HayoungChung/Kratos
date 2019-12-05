@@ -15,8 +15,8 @@
 // External includes
 
 // Project includes
-#include "includes/checks.h"
 #include "custom_conditions/base_load_condition.h"
+#include "includes/checks.h"
 
 namespace Kratos
 {
@@ -47,7 +47,7 @@ Condition::Pointer BaseLoadCondition::Create(
     ) const
 {
     KRATOS_TRY
-    return Kratos::make_shared<BaseLoadCondition>(NewId, GetGeometry().Create(ThisNodes), pProperties);
+    return Kratos::make_intrusive<BaseLoadCondition>(NewId, GetGeometry().Create(ThisNodes), pProperties);
     KRATOS_CATCH("");
 }
 
@@ -61,7 +61,7 @@ Condition::Pointer BaseLoadCondition::Create(
     ) const
 {
     KRATOS_TRY
-    return Kratos::make_shared<BaseLoadCondition>(NewId, pGeom, pProperties);
+    return Kratos::make_intrusive<BaseLoadCondition>(NewId, pGeom, pProperties);
     KRATOS_CATCH("");
 }
 
@@ -75,52 +75,12 @@ Condition::Pointer BaseLoadCondition::Clone (
 {
     KRATOS_TRY
 
-    Condition::Pointer p_new_cond = Kratos::make_shared<BaseLoadCondition>(NewId, GetGeometry().Create(ThisNodes), pGetProperties());
+    Condition::Pointer p_new_cond = Kratos::make_intrusive<BaseLoadCondition>(NewId, GetGeometry().Create(ThisNodes), pGetProperties());
     p_new_cond->SetData(this->GetData());
     p_new_cond->Set(Flags(*this));
     return p_new_cond;
 
     KRATOS_CATCH("");
-}
-
-/***********************************************************************************/
-/***********************************************************************************/
-
-void BaseLoadCondition::Initialize()
-{
-    // TODO: Add somethig if necessary
-}
-
-/***********************************************************************************/
-/***********************************************************************************/
-
-void BaseLoadCondition::InitializeSolutionStep( ProcessInfo& rCurrentProcessInfo )
-{
-    // TODO: Add somethig if necessary
-}
-
-/***********************************************************************************/
-/***********************************************************************************/
-
-void BaseLoadCondition::InitializeNonLinearIteration( ProcessInfo& rCurrentProcessInfo )
-{
-    // TODO: Add somethig if necessary
-}
-
-/***********************************************************************************/
-/***********************************************************************************/
-
-void BaseLoadCondition::FinalizeNonLinearIteration( ProcessInfo& rCurrentProcessInfo )
-{
-    // TODO: Add somethig if necessary
-}
-
-/***********************************************************************************/
-/***********************************************************************************/
-
-void BaseLoadCondition::FinalizeSolutionStep( ProcessInfo& rCurrentProcessInfo )
-{
-    // TODO: Add somethig if necessary
 }
 
 /***********************************************************************************/
@@ -330,9 +290,9 @@ void BaseLoadCondition::CalculateDampingMatrix(
 
 void BaseLoadCondition::CalculateAll(
     MatrixType& rLeftHandSideMatrix, VectorType& rRightHandSideVector,
-    ProcessInfo& rCurrentProcessInfo,
-    bool CalculateStiffnessMatrixFlag,
-    bool CalculateResidualVectorFlag
+    const ProcessInfo& rCurrentProcessInfo,
+    const bool CalculateStiffnessMatrixFlag,
+    const bool CalculateResidualVectorFlag
     )
 {
     KRATOS_ERROR << "You are calling the CalculateAll from the base class for loads" << std::endl;
@@ -350,14 +310,12 @@ int BaseLoadCondition::Check( const ProcessInfo& rCurrentProcessInfo )
     KRATOS_CHECK_VARIABLE_KEY(DISPLACEMENT)
 
     // Check that the condition's nodes contain all required SolutionStepData and Degrees of freedom
-    const SizeType number_of_nodes = this->GetGeometry().size();
-    for ( SizeType i = 0; i < number_of_nodes; ++i ) {
-        NodeType &rnode = this->GetGeometry()[i];
-        KRATOS_CHECK_VARIABLE_IN_NODAL_DATA(DISPLACEMENT,rnode)
+    for (const auto& r_node : this->GetGeometry().Points()) {
+        KRATOS_CHECK_VARIABLE_IN_NODAL_DATA(DISPLACEMENT,r_node)
 
-        KRATOS_CHECK_DOF_IN_NODE(DISPLACEMENT_X, rnode)
-        KRATOS_CHECK_DOF_IN_NODE(DISPLACEMENT_Y, rnode)
-        KRATOS_CHECK_DOF_IN_NODE(DISPLACEMENT_Z, rnode)
+        KRATOS_CHECK_DOF_IN_NODE(DISPLACEMENT_X, r_node)
+        KRATOS_CHECK_DOF_IN_NODE(DISPLACEMENT_Y, r_node)
+        KRATOS_CHECK_DOF_IN_NODE(DISPLACEMENT_Z, r_node)
     }
 
     return 0;
@@ -370,7 +328,7 @@ double BaseLoadCondition::GetIntegrationWeight(
     const GeometryType::IntegrationPointsArrayType& IntegrationPoints,
     const SizeType PointNumber,
     const double detJ
-    )
+    ) const
 {
     return IntegrationPoints[PointNumber].Weight() * detJ;
 }
@@ -404,6 +362,7 @@ void BaseLoadCondition::AddExplicitContribution(
 
     KRATOS_CATCH( "" )
 }
+
 /***********************************************************************************/
 /***********************************************************************************/
 
@@ -411,6 +370,9 @@ void BaseLoadCondition::save( Serializer& rSerializer ) const
 {
     KRATOS_SERIALIZE_SAVE_BASE_CLASS( rSerializer, BaseType )
 }
+
+/***********************************************************************************/
+/***********************************************************************************/
 
 void BaseLoadCondition::load( Serializer& rSerializer )
 {

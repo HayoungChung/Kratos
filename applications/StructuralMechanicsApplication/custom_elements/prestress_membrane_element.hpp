@@ -35,7 +35,7 @@ namespace Kratos
   public:
 
     // Counted pointer of MembraneElement
-    KRATOS_CLASS_POINTER_DEFINITION(PrestressMembraneElement);
+    KRATOS_CLASS_INTRUSIVE_POINTER_DEFINITION(PrestressMembraneElement);
 
     // Constructor using an array of nodes
     PrestressMembraneElement(IndexType NewId, GeometryType::Pointer pGeometry);
@@ -85,11 +85,20 @@ namespace Kratos
 
     void Initialize() override;
 
-    void InitializeSolutionStep(ProcessInfo& rCurrentProcessInfo) override;
+    void InitializeNonLinearIteration(ProcessInfo& rCurrentProcessInfo) override;
+
+    void CalculateLeftHandSide(
+    MatrixType& rLeftHandSideMatrix,
+    ProcessInfo& rCurrentProcessInfo) override;
 
     void CalculateRightHandSide(
       VectorType& rRightHandSideVector,
       ProcessInfo& rCurrentProcessInfo) override;
+
+    void CalculateDampingMatrix(
+        MatrixType& rDampingMatrix,
+        ProcessInfo& rCurrentProcessInfo
+        ) override;
 
     void CalculateLocalSystem(
       MatrixType& rLeftHandSideMatrix,
@@ -103,10 +112,6 @@ namespace Kratos
 
     void CalculateMassMatrix(
       MatrixType& rMassMatrix,
-      ProcessInfo& rCurrentProcessInfo) override;
-
-    void CalculateDampingMatrix(
-      MatrixType& rDampingMatrix,
       ProcessInfo& rCurrentProcessInfo) override;
 
     void FinalizeSolutionStep(
@@ -127,10 +132,43 @@ namespace Kratos
     void GetValueOnIntegrationPoints(const Variable<Matrix>& rVariable,
       std::vector<Matrix>& rValues, const ProcessInfo& rCurrentProcessInfo) override;
 
-  protected:
+    int Check(const ProcessInfo& rCurrentProcessInfo) override;
 
 
-  private:
+        /**
+     * @brief This function is designed to make the element to assemble an rRHS vector identified by a variable rRHSVariable by assembling it to the nodes on the variable rDestinationVariable (double version)
+     * @details The "AddEXplicit" FUNCTIONS THE ONLY FUNCTIONS IN WHICH AN ELEMENT IS ALLOWED TO WRITE ON ITS NODES.
+     * The caller is expected to ensure thread safety hence SET/UNSETLOCK MUST BE PERFORMED IN THE STRATEGY BEFORE CALLING THIS FUNCTION
+     * @param rRHSVector input variable containing the RHS vector to be assembled
+     * @param rRHSVariable variable describing the type of the RHS vector to be assembled
+     * @param rDestinationVariable variable in the database to which the rRHSVector will be assembled
+     * @param rCurrentProcessInfo the current process info instance
+     */
+    void AddExplicitContribution(
+        const VectorType& rRHSVector,
+        const Variable<VectorType>& rRHSVariable,
+        Variable<double >& rDestinationVariable,
+        const ProcessInfo& rCurrentProcessInfo
+        ) override;
+
+    /**
+     * @brief This function is designed to make the element to assemble an rRHS vector identified by a variable rRHSVariable by assembling it to the nodes on the variable (array_1d<double, 3>) version rDestinationVariable.
+     * @details The "AddEXplicit" FUNCTIONS THE ONLY FUNCTIONS IN WHICH AN ELEMENT IS ALLOWED TO WRITE ON ITS NODES.
+     * The caller is expected to ensure thread safety hence SET/UNSETLOCK MUST BE PERFORMED IN THE STRATEGY BEFORE CALLING THIS FUNCTION
+     * @param rRHSVector input variable containing the RHS vector to be assembled
+     * @param rRHSVariable variable describing the type of the RHS vector to be assembled
+     * @param rDestinationVariable variable in the database to which the rRHSVector will be assembled
+     * @param rCurrentProcessInfo the current process info instance
+     */
+    void AddExplicitContribution(const VectorType& rRHSVector,
+        const Variable<VectorType>& rRHSVariable,
+        Variable<array_1d<double, 3> >& rDestinationVariable,
+        const ProcessInfo& rCurrentProcessInfo
+        ) override;
+
+    void CalculateLumpedMassVector(VectorType& rMassVector);
+
+private:
     ///@name Static Member Variables
     std::vector<ConstitutiveLaw::Pointer> mConstitutiveLawVector;
     Vector mDetJ0;
@@ -158,9 +196,6 @@ namespace Kratos
       Matrix& rD,
       const double& rWeight);
 
-
-    void InitializeNonLinearIteration(ProcessInfo& rCurrentProcessInfo) override;
-
     void CalculateAndAddNonlinearKm(
         Matrix& rK,
         Matrix& rB11,
@@ -185,14 +220,12 @@ namespace Kratos
         array_1d<double, 3>& rgab,
         array_1d<double, 3>& rGab);
 
-    void CalculateAndAdd_BodyForce(
-      const Vector& rN,
-      const ProcessInfo& rCurrentProcessInfo,
-      array_1d<double, 3>& BodyForce,
-      VectorType& rRightHandSideVector,
-      const double& rWeight);
+    void CalculateAndAddBodyForce(
+        VectorType& rRightHandSideVector,
+        const IndexType PointNumber,
+        const double& rWeight) const;
 
-    void CalculateAndAdd_PressureForce(
+    void CalculateAndAddPressureForce(
       VectorType& rResidualVector,
       const Vector& N,
       const array_1d<double, 3>& rv3,
@@ -258,8 +291,6 @@ namespace Kratos
                     const double Lambda1, const double Lambda2);
 
     const Matrix CalculateDeformationGradient(const unsigned int PointNumber);
-
-    int  Check(const ProcessInfo& rCurrentProcessInfo) override;
 
     ///@}
     ///@name Serialization

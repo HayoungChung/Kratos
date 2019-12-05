@@ -35,9 +35,9 @@
 #include "utilities/condition_number_utility.h"
 #include "utilities/mortar_utilities.h"
 #include "utilities/read_materials_utility.h"
+#include "includes/global_pointer_variables.h"
 
 // #include "utilities/signed_distance_calculator_bin_based.h"
-#include "utilities/divide_elem_utils.h"
 #include "utilities/timer.h"
 
 #include "utilities/binbased_fast_point_locator.h"
@@ -52,12 +52,13 @@
 #include "utilities/table_stream_utility.h"
 #include "utilities/exact_mortar_segmentation_utility.h"
 #include "utilities/sparse_matrix_multiplication_utility.h"
-#include "utilities/sub_model_parts_list_utility.h"
 #include "utilities/assign_unique_model_part_collection_tag_utility.h"
 #include "utilities/merge_variable_lists_utility.h"
 #include "utilities/variable_redistribution_utility.h"
 #include "utilities/sensitivity_builder.h"
 #include "utilities/auxiliar_model_part_utilities.h"
+#include "utilities/time_discretization.h"
+#include "utilities/geometrical_transformation_utilities.h"
 
 namespace Kratos {
 namespace Python {
@@ -73,7 +74,7 @@ void SetOnProcessInfo(
     rCurrentProcessInfo[TABLE_UTILITY] = pTable;
 }
 
-// Embedded skin utility auxiliar functions 
+// Embedded skin utility auxiliar functions
 template<std::size_t TDim>
 void InterpolateMeshVariableToSkinDouble(
     EmbeddedSkinUtility<TDim> &rEmbeddedSkinUtility,
@@ -90,6 +91,26 @@ void InterpolateMeshVariableToSkinArray(
     const Variable<array_1d<double,3>> &rEmbeddedVariable)
 {
     rEmbeddedSkinUtility.InterpolateMeshVariableToSkin(rVariable, rEmbeddedVariable);
+}
+
+template<std::size_t TDim>
+void InterpolateDiscontinuousMeshVariableToSkinDouble(
+    EmbeddedSkinUtility<TDim> &rEmbeddedSkinUtility,
+    const Variable<double> &rVariable,
+    const Variable<double> &rEmbeddedVariable,
+    const std::string &rInterfaceSide)
+{
+    rEmbeddedSkinUtility.InterpolateDiscontinuousMeshVariableToSkin(rVariable, rEmbeddedVariable, rInterfaceSide);
+}
+
+template<std::size_t TDim>
+void InterpolateDiscontinuousMeshVariableToSkinArray(
+    EmbeddedSkinUtility<TDim> &rEmbeddedSkinUtility,
+    const Variable<array_1d<double,3>> &rVariable,
+    const Variable<array_1d<double,3>> &rEmbeddedVariable,
+    const std::string &rInterfaceSide)
+{
+    rEmbeddedSkinUtility.InterpolateDiscontinuousMeshVariableToSkin(rVariable, rEmbeddedVariable, rInterfaceSide);
 }
 
 // Auxiliar ModelPart Utility
@@ -170,8 +191,155 @@ void ModelPartRemoveConditionAndBelongingsFromAllLevels4(AuxiliarModelPartUtilit
 {
     rAuxiliarModelPartUtilities.RemoveConditionAndBelongingsFromAllLevels(pThisCondition, IdentifierFlag, ThisIndex);
 }
-  
-void AddUtilitiesToPython(pybind11::module& m)
+
+void CalculateDistancesDefault2D(ParallelDistanceCalculator<2>& rParallelDistanceCalculator,ModelPart& rModelPart, const Variable<double>& rDistanceVar, const Variable<double>& rAreaVar, const unsigned int max_levels, const double max_distance)
+{
+    rParallelDistanceCalculator.CalculateDistances(rModelPart, rDistanceVar, rAreaVar, max_levels, max_distance);
+}
+
+void CalculateDistancesFlag2D(ParallelDistanceCalculator<2>& rParallelDistanceCalculator, ModelPart& rModelPart, const Variable<double>& rDistanceVar, const Variable<double>& rAreaVar, const unsigned int max_levels, const double max_distance, Flags Options)
+{
+    rParallelDistanceCalculator.CalculateDistances(rModelPart, rDistanceVar, rAreaVar, max_levels, max_distance, Options);
+}
+
+void CalculateDistancesDefault3D(ParallelDistanceCalculator<3>& rParallelDistanceCalculator,ModelPart& rModelPart, const Variable<double>& rDistanceVar, const Variable<double>& rAreaVar, const unsigned int max_levels, const double max_distance)
+{
+    rParallelDistanceCalculator.CalculateDistances(rModelPart, rDistanceVar, rAreaVar, max_levels, max_distance);
+}
+
+void CalculateDistancesFlag3D(ParallelDistanceCalculator<3>& rParallelDistanceCalculator, ModelPart& rModelPart, const Variable<double>& rDistanceVar, const Variable<double>& rAreaVar, const unsigned int max_levels, const double max_distance, Flags Options)
+{
+    rParallelDistanceCalculator.CalculateDistances(rModelPart, rDistanceVar, rAreaVar, max_levels, max_distance, Options);
+}
+
+void VariableUtilsUpdateCurrentPosition(
+    VariableUtils &rVariableUtils,
+    const ModelPart::NodesContainerType &rNodes
+    )
+{
+    rVariableUtils.UpdateCurrentPosition(rNodes);
+}
+
+void VariableUtilsUpdateCurrentPositionWithVariable(
+    VariableUtils &rVariableUtils,
+    const ModelPart::NodesContainerType &rNodes,
+    const VariableUtils::ArrayVarType &rUpdateVariable
+    )
+{
+    rVariableUtils.UpdateCurrentPosition(rNodes, rUpdateVariable);
+}
+
+void VariableUtilsUpdateCurrentPositionWithVariableAndPosition(
+    VariableUtils &rVariableUtils,
+    const ModelPart::NodesContainerType &rNodes,
+    const VariableUtils::ArrayVarType &rUpdateVariable,
+    const IndexType BufferPosition
+    )
+{
+    rVariableUtils.UpdateCurrentPosition(rNodes, rUpdateVariable, BufferPosition);
+}
+
+template<class TVarType>
+void VariableUtilsCopyModelPartNodalVar(
+    VariableUtils &rVariableUtils,
+    const TVarType &rVariable,
+    const ModelPart &rOriginModelPart,
+    ModelPart &rDestinationModelPart,
+    const unsigned int BuffStep = 0)
+{
+    rVariableUtils.CopyModelPartNodalVar(rVariable, rOriginModelPart, rDestinationModelPart, BuffStep);
+}
+
+template<class TVarType>
+void VariableUtilsCopyModelPartNodalVarWithDestination(
+    VariableUtils &rVariableUtils,
+    const TVarType &rVariable,
+    const TVarType &rDestinationVariable,
+    const ModelPart &rOriginModelPart,
+    ModelPart &rDestinationModelPart,
+    const unsigned int BuffStep = 0)
+{
+    rVariableUtils.CopyModelPartNodalVar(rVariable, rDestinationVariable, rOriginModelPart, rDestinationModelPart, BuffStep);
+}
+
+template<class TVarType>
+void CopyModelPartNodalVarToNonHistoricalVar(
+    VariableUtils &rVariableUtils,
+    const TVarType &rVariable,
+    const ModelPart &rOriginModelPart,
+    ModelPart &rDestinationModelPart,
+    const unsigned int BuffStep = 0)
+{
+    rVariableUtils.CopyModelPartNodalVarToNonHistoricalVar(rVariable, rOriginModelPart, rDestinationModelPart, BuffStep);
+}
+
+template<class TVarType>
+void CopyModelPartNodalVarToNonHistoricalVarWithDestination(
+    VariableUtils &rVariableUtils,
+    const TVarType &rVariable,
+    const TVarType &rDestinationVariable,
+    const ModelPart &rOriginModelPart,
+    ModelPart &rDestinationModelPart,
+    const unsigned int BuffStep = 0)
+{
+    rVariableUtils.CopyModelPartNodalVarToNonHistoricalVar(rVariable, rDestinationVariable, rOriginModelPart, rDestinationModelPart, BuffStep);
+}
+
+void PrintTimingInformation(Timer& rTimer)
+{
+    rTimer.PrintTimingInformation();
+}
+
+void ComputeNodesTangentModelPartWithSlipVariable(
+    ModelPart& rModelPart,
+    const Variable<array_1d<double, 3>>& rSlipVariable,
+    const double SlipCoefficient,
+    const bool SlipAlways
+    )
+{
+    MortarUtilities::ComputeNodesTangentModelPart(rModelPart, &rSlipVariable, SlipCoefficient, SlipAlways);
+}
+
+void ComputeNodesTangentModelPartWithOutSlipVariable(
+    ModelPart& rModelPart,
+    const double SlipCoefficient,
+    const bool SlipAlways
+    )
+{
+    MortarUtilities::ComputeNodesTangentModelPart(rModelPart, NULL, SlipCoefficient, SlipAlways);
+}
+
+void ComputeNodesTangentModelPartWithSlipVariableNotAlwaysSlip(
+    ModelPart& rModelPart,
+    const Variable<array_1d<double, 3>>& rSlipVariable,
+    const double SlipCoefficient
+    )
+{
+    MortarUtilities::ComputeNodesTangentModelPart(rModelPart, &rSlipVariable, SlipCoefficient, false);
+}
+
+void ComputeNodesTangentModelPartWithOutSlipVariableNotAlwaysSlip(
+    ModelPart& rModelPart,
+    const double SlipCoefficient
+    )
+{
+    MortarUtilities::ComputeNodesTangentModelPart(rModelPart, NULL, SlipCoefficient, false);
+}
+
+void ComputeNodesTangentModelPartWithSlipVariableNotAlwaysSlipUnitary(
+    ModelPart& rModelPart,
+    const Variable<array_1d<double, 3>>& rSlipVariable
+    )
+{
+    MortarUtilities::ComputeNodesTangentModelPart(rModelPart, &rSlipVariable, 1.0, false);
+}
+
+void ComputeNodesTangentModelPartWithOutSlipVariableNotAlwaysSlipUnitary(ModelPart& rModelPart)
+{
+    MortarUtilities::ComputeNodesTangentModelPart(rModelPart, NULL, 1.0, false);
+}
+
+void AddUtilitiesToPython(pybind11::module &m)
 {
     namespace py = pybind11;
 
@@ -212,7 +380,7 @@ void AddUtilitiesToPython(pybind11::module& m)
     InputGetConditionNumber ThisGetConditionNumber = &ConditionNumberUtility::GetConditionNumber;
     DirectGetConditionNumber ThisDirectGetConditionNumber = &ConditionNumberUtility::GetConditionNumber;
 
-    py::class_<ConditionNumberUtility>(m,"ConditionNumberUtility")
+    py::class_<ConditionNumberUtility,ConditionNumberUtility::Pointer>(m,"ConditionNumberUtility")
         .def(py::init<>())
         .def(py::init<LinearSolverType::Pointer, LinearSolverType::Pointer>())
         .def("GetConditionNumber", ThisGetConditionNumber)
@@ -221,14 +389,38 @@ void AddUtilitiesToPython(pybind11::module& m)
 
     py::class_<VariableUtils>(m, "VariableUtils")
         .def(py::init<>())
-        .def("CopyModelPartNodalVar", &VariableUtils::CopyModelPartNodalVar<Variable<bool>>)
-        .def("CopyModelPartNodalVar", &VariableUtils::CopyModelPartNodalVar<Variable<double>>)
-        .def("CopyModelPartNodalVar", &VariableUtils::CopyModelPartNodalVar<Variable<array_1d<double,3>>>)
-        .def("CopyModelPartNodalVar", &VariableUtils::CopyModelPartNodalVar<Variable<array_1d<double,4>>>)
-        .def("CopyModelPartNodalVar", &VariableUtils::CopyModelPartNodalVar<Variable<array_1d<double,6>>>)
-        .def("CopyModelPartNodalVar", &VariableUtils::CopyModelPartNodalVar<Variable<array_1d<double,9>>>)
-        .def("CopyModelPartNodalVar", &VariableUtils::CopyModelPartNodalVar<Variable<Vector>>)
-        .def("CopyModelPartNodalVar", &VariableUtils::CopyModelPartNodalVar<Variable<Matrix>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVar<Variable<bool>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVar<Variable<double>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVar<Variable<array_1d<double,3>>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVar<Variable<array_1d<double,4>>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVar<Variable<array_1d<double,6>>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVar<Variable<array_1d<double,9>>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVar<Variable<Vector>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVar<Variable<Matrix>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVarWithDestination<Variable<bool>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVarWithDestination<Variable<double>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVarWithDestination<Variable<array_1d<double,3>>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVarWithDestination<Variable<array_1d<double,4>>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVarWithDestination<Variable<array_1d<double,6>>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVarWithDestination<Variable<array_1d<double,9>>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVarWithDestination<Variable<Vector>>)
+        .def("CopyModelPartNodalVar", VariableUtilsCopyModelPartNodalVarWithDestination<Variable<Matrix>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVar<Variable<bool>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVar<Variable<double>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVar<Variable<array_1d<double,3>>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVar<Variable<array_1d<double,4>>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVar<Variable<array_1d<double,6>>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVar<Variable<array_1d<double,9>>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVar<Variable<Vector>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVar<Variable<Matrix>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVarWithDestination<Variable<bool>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVarWithDestination<Variable<double>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVarWithDestination<Variable<array_1d<double,3>>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVarWithDestination<Variable<array_1d<double,4>>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVarWithDestination<Variable<array_1d<double,6>>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVarWithDestination<Variable<array_1d<double,9>>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVarWithDestination<Variable<Vector>>)
+        .def("CopyModelPartNodalVarToNonHistoricalVar", CopyModelPartNodalVarToNonHistoricalVarWithDestination<Variable<Matrix>>)
         .def("CopyModelPartElementalVar", &VariableUtils::CopyModelPartElementalVar<Variable<bool>>)
         .def("CopyModelPartElementalVar", &VariableUtils::CopyModelPartElementalVar<Variable<double>>)
         .def("CopyModelPartElementalVar", &VariableUtils::CopyModelPartElementalVar<Variable<array_1d<double,3>>>)
@@ -249,12 +441,14 @@ void AddUtilitiesToPython(pybind11::module& m)
         .def("SetScalarVar", &VariableUtils::SetScalarVarForFlag<VariableComponent<VectorComponentAdaptor<array_1d<double, 4>>>>)
         .def("SetScalarVar", &VariableUtils::SetScalarVarForFlag<VariableComponent<VectorComponentAdaptor<array_1d<double, 6>>>>)
         .def("SetScalarVar", &VariableUtils::SetScalarVarForFlag<VariableComponent<VectorComponentAdaptor<array_1d<double, 9>>>>)
+        .def("SetNonHistoricalScalarVar", &VariableUtils::SetNonHistoricalVariable<int, ModelPart::NodesContainerType>)
         .def("SetNonHistoricalScalarVar", &VariableUtils::SetNonHistoricalVariable<double, ModelPart::NodesContainerType>)
         .def("SetNonHistoricalScalarVar", &VariableUtils::SetNonHistoricalVariable<double, ModelPart::NodesContainerType, VariableComponent<VectorComponentAdaptor<array_1d<double, 3>>>>)
         .def("SetNonHistoricalScalarVar", &VariableUtils::SetNonHistoricalVariable<double, ModelPart::NodesContainerType, VariableComponent<VectorComponentAdaptor<array_1d<double, 4>>>>)
         .def("SetNonHistoricalScalarVar", &VariableUtils::SetNonHistoricalVariable<double, ModelPart::NodesContainerType, VariableComponent<VectorComponentAdaptor<array_1d<double, 6>>>>)
         .def("SetNonHistoricalScalarVar", &VariableUtils::SetNonHistoricalVariable<double, ModelPart::NodesContainerType, VariableComponent<VectorComponentAdaptor<array_1d<double, 9>>>>)
         .def("SetNonHistoricalVectorVar", &VariableUtils::SetNonHistoricalVariable<array_1d<double, 3>, ModelPart::NodesContainerType>)
+        .def("SetVariable", &VariableUtils::SetVariable<int>)
         .def("SetVariable", &VariableUtils::SetVariable<bool>)
         .def("SetVariable", &VariableUtils::SetVariable<double>)
         .def("SetVariable", &VariableUtils::SetVariable<array_1d<double, 3>>)
@@ -268,6 +462,33 @@ void AddUtilitiesToPython(pybind11::module& m)
         .def("SetVariable", &VariableUtils::SetVariableForFlag<array_1d<double, 9>>)
         .def("SetVariable", &VariableUtils::SetVariableForFlag<Vector>)
         .def("SetVariable", &VariableUtils::SetVariableForFlag<Matrix>)
+        .def("SetHistoricalVariableToZero", &VariableUtils::SetHistoricalVariableToZero<int>)
+        .def("SetHistoricalVariableToZero", &VariableUtils::SetHistoricalVariableToZero<double>)
+        .def("SetHistoricalVariableToZero", &VariableUtils::SetHistoricalVariableToZero<array_1d<double, 3>>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<int, ModelPart::NodesContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<double, ModelPart::NodesContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<double, ModelPart::ElementsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<int, ModelPart::ElementsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<double, ModelPart::ConditionsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<int, ModelPart::ConditionsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<double, ModelPart::MasterSlaveConstraintContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 3>, ModelPart::NodesContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 3>, ModelPart::ElementsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 3>, ModelPart::ConditionsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 3>, ModelPart::MasterSlaveConstraintContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 4>, ModelPart::NodesContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 4>, ModelPart::ElementsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 4>, ModelPart::ConditionsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 4>, ModelPart::MasterSlaveConstraintContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 6>, ModelPart::NodesContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 6>, ModelPart::ElementsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 6>, ModelPart::ConditionsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 6>, ModelPart::MasterSlaveConstraintContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 9>, ModelPart::NodesContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 9>, ModelPart::ElementsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 9>, ModelPart::ConditionsContainerType>)
+        .def("SetNonHistoricalVariableToZero", &VariableUtils::SetNonHistoricalVariableToZero<array_1d<double, 9>, ModelPart::MasterSlaveConstraintContainerType>)
+        .def("SetNonHistoricalVariable", &VariableUtils::SetNonHistoricalVariable<int, ModelPart::NodesContainerType>)
         .def("SetNonHistoricalVariable", &VariableUtils::SetNonHistoricalVariable<bool, ModelPart::NodesContainerType>)
         .def("SetNonHistoricalVariable", &VariableUtils::SetNonHistoricalVariable<double, ModelPart::NodesContainerType>)
         .def("SetNonHistoricalVariable", &VariableUtils::SetNonHistoricalVariable<array_1d<double, 3>, ModelPart::NodesContainerType>)
@@ -316,10 +537,21 @@ void AddUtilitiesToPython(pybind11::module& m)
         .def("SetNonHistoricalVariable", &VariableUtils::SetNonHistoricalVariableForFlag<array_1d<double, 9>, ModelPart::ElementsContainerType>)
         .def("SetNonHistoricalVariable", &VariableUtils::SetNonHistoricalVariableForFlag<Vector, ModelPart::ElementsContainerType>)
         .def("SetNonHistoricalVariable", &VariableUtils::SetNonHistoricalVariableForFlag<Matrix, ModelPart::ElementsContainerType>)
+        .def("ClearNonHistoricalData", &VariableUtils::ClearNonHistoricalData<ModelPart::NodesContainerType>)
+        .def("ClearNonHistoricalData", &VariableUtils::ClearNonHistoricalData<ModelPart::ConditionsContainerType>)
+        .def("ClearNonHistoricalData", &VariableUtils::ClearNonHistoricalData<ModelPart::ElementsContainerType>)
         .def("SetFlag", &VariableUtils::SetFlag<ModelPart::NodesContainerType>)
         .def("SetFlag", &VariableUtils::SetFlag<ModelPart::ConditionsContainerType>)
         .def("SetFlag", &VariableUtils::SetFlag<ModelPart::ElementsContainerType>)
         .def("SetFlag", &VariableUtils::SetFlag<ModelPart::MasterSlaveConstraintContainerType>)
+        .def("ResetFlag", &VariableUtils::ResetFlag<ModelPart::NodesContainerType>)
+        .def("ResetFlag", &VariableUtils::ResetFlag<ModelPart::ConditionsContainerType>)
+        .def("ResetFlag", &VariableUtils::ResetFlag<ModelPart::ElementsContainerType>)
+        .def("ResetFlag", &VariableUtils::ResetFlag<ModelPart::MasterSlaveConstraintContainerType>)
+        .def("FlipFlag", &VariableUtils::FlipFlag<ModelPart::NodesContainerType>)
+        .def("FlipFlag", &VariableUtils::FlipFlag<ModelPart::ConditionsContainerType>)
+        .def("FlipFlag", &VariableUtils::FlipFlag<ModelPart::ElementsContainerType>)
+        .def("FlipFlag", &VariableUtils::FlipFlag<ModelPart::MasterSlaveConstraintContainerType>)
         .def("SaveVectorVar", &VariableUtils::SaveVectorVar)
         .def("SaveScalarVar", &VariableUtils::SaveScalarVar)
         .def("SaveVectorNonHistoricalVar", &VariableUtils::SaveVectorNonHistoricalVar)
@@ -328,9 +560,6 @@ void AddUtilitiesToPython(pybind11::module& m)
         .def("CopyVectorVar", &VariableUtils::CopyVectorVar)
         .def("CopyComponentVar", &VariableUtils::CopyComponentVar)
         .def("CopyScalarVar", &VariableUtils::CopyScalarVar)
-        .def("SetToZero_VectorVar", &VariableUtils::SetToZero_VectorVar)
-        .def("SetToZero_ScalarVar", &VariableUtils::SetToZero_ScalarVar)
-//         .def("SetToZero_VelocityVectorVar", &VariableUtils::SetToZero_VelocityVectorVar)
 //         .def("CheckVariableExists", &VariableUtils::CheckVariableExists< Variable<double> >)
 //         .def("CheckVariableExists", &VariableUtils::CheckVariableExists< VariableComponent< VectorComponentAdaptor<array_1d<double, 3> > > > )
 //         .def("CheckVariableExists", &VariableUtils::CheckVariableExists< VariableComponent< VectorComponentAdaptor<array_1d<double, 4> > > > )
@@ -388,6 +617,9 @@ void AddUtilitiesToPython(pybind11::module& m)
         .def("CheckDofs", &VariableUtils::CheckDofs)
         .def("UpdateCurrentToInitialConfiguration", &VariableUtils::UpdateCurrentToInitialConfiguration)
         .def("UpdateInitialToCurrentConfiguration", &VariableUtils::UpdateInitialToCurrentConfiguration)
+        .def("UpdateCurrentPosition", VariableUtilsUpdateCurrentPosition)
+        .def("UpdateCurrentPosition", VariableUtilsUpdateCurrentPositionWithVariable)
+        .def("UpdateCurrentPosition", VariableUtilsUpdateCurrentPositionWithVariableAndPosition)
         ;
 
     // This is required to recognize the different overloads of NormalCalculationUtils::CalculateOnSimplex
@@ -440,18 +672,24 @@ void AddUtilitiesToPython(pybind11::module& m)
 
     py::class_<ParallelDistanceCalculator < 2 > >(m,"ParallelDistanceCalculator2D")
         .def(py::init<>())
-        .def("CalculateDistances", &ParallelDistanceCalculator < 2 > ::CalculateDistances)
+        .def("CalculateDistances", CalculateDistancesDefault2D)
+        .def("CalculateDistances", CalculateDistancesFlag2D)
         .def("CalculateInterfacePreservingDistances", &ParallelDistanceCalculator < 2 > ::CalculateInterfacePreservingDistances)
         .def("CalculateDistancesLagrangianSurface", &ParallelDistanceCalculator < 2 > ::CalculateDistancesLagrangianSurface)
         .def("FindMaximumEdgeSize", &ParallelDistanceCalculator < 2 > ::FindMaximumEdgeSize)
+        .def_readonly_static("CALCULATE_EXACT_DISTANCES_TO_PLANE", &ParallelDistanceCalculator<2>::CALCULATE_EXACT_DISTANCES_TO_PLANE)
+        .def_readonly_static("NOT_CALCULATE_EXACT_DISTANCES_TO_PLANE", &ParallelDistanceCalculator<2>::NOT_CALCULATE_EXACT_DISTANCES_TO_PLANE)
         ;
 
     py::class_<ParallelDistanceCalculator < 3 > >(m,"ParallelDistanceCalculator3D")
         .def(py::init<>())
-        .def("CalculateDistances", &ParallelDistanceCalculator < 3 > ::CalculateDistances)
+        .def("CalculateDistances", CalculateDistancesDefault3D)
+        .def("CalculateDistances", CalculateDistancesFlag3D)
         .def("CalculateInterfacePreservingDistances", &ParallelDistanceCalculator < 3 > ::CalculateInterfacePreservingDistances)
         .def("CalculateDistancesLagrangianSurface", &ParallelDistanceCalculator < 3 > ::CalculateDistancesLagrangianSurface)
         .def("FindMaximumEdgeSize", &ParallelDistanceCalculator < 3 > ::FindMaximumEdgeSize)
+        .def_readonly_static("CALCULATE_EXACT_DISTANCES_TO_PLANE", &ParallelDistanceCalculator<3>::CALCULATE_EXACT_DISTANCES_TO_PLANE)
+        .def_readonly_static("NOT_CALCULATE_EXACT_DISTANCES_TO_PLANE", &ParallelDistanceCalculator<3>::NOT_CALCULATE_EXACT_DISTANCES_TO_PLANE)
         ;
 
     py::class_<BruteForcePointLocator> (m, "BruteForcePointLocator")
@@ -493,19 +731,20 @@ void AddUtilitiesToPython(pybind11::module& m)
 //                             .def("FindMaximumEdgeSize",&SignedDistanceCalculationBinBased<3>::FindMaximumEdgeSize )
 //             ;
 
-    py::class_<DivideElemUtils >(m,"DivideElemUtils")
-        .def(py::init<>())
-        .def("DivideElement_2D", &DivideElemUtils::DivideElement_2D)
-        ;
-
     py::class_<Timer >(m,"Timer")
         .def(py::init<>())
         .def_property("PrintOnScreen", &Timer::GetPrintOnScreen, &Timer::SetPrintOnScreen)
+        .def_property("PrintIntervalInformation", &Timer::GetPrintIntervalInformation, &Timer::SetPrintIntervalInformation)
         .def_static("Start", &Timer::Start)
         .def_static("Stop", &Timer::Stop)
-    //     .staticmethod("Start")
-    //     .staticmethod("Stop")
-        //      .def("PrintTimingInformation",Timer::PrintTimingInformation)
+        .def_static("GetTime", &Timer::GetTime)
+        .def_static("SetOuputFile", &Timer::SetOuputFile)
+        .def_static("CloseOuputFile", &Timer::CloseOuputFile)
+        .def_static("GetPrintOnScreen", &Timer::GetPrintOnScreen)
+        .def_static("SetPrintOnScreen", &Timer::SetPrintOnScreen)
+        .def_static("GetPrintIntervalInformation", &Timer::GetPrintIntervalInformation)
+        .def_static("SetPrintIntervalInformation", &Timer::SetPrintIntervalInformation)
+        .def_static("PrintTimingInformation", PrintTimingInformation)
         .def("__str__", PrintObject<Timer>)
         ;
 
@@ -519,14 +758,14 @@ void AddUtilitiesToPython(pybind11::module& m)
     //     .staticmethod("PrintOMPInfo")
         ;
 
-    py::class_< BinBasedFastPointLocator < 2 > >(m,"BinBasedFastPointLocator2D")
+    py::class_< BinBasedFastPointLocator < 2 >, BinBasedFastPointLocator < 2 >::Pointer >(m,"BinBasedFastPointLocator2D")
         .def(py::init<ModelPart& >())
         .def("UpdateSearchDatabase", &BinBasedFastPointLocator < 2 > ::UpdateSearchDatabase)
         .def("UpdateSearchDatabaseAssignedSize", &BinBasedFastPointLocator < 2 > ::UpdateSearchDatabaseAssignedSize)
         .def("FindPointOnMesh", &BinBasedFastPointLocator < 2 > ::FindPointOnMeshSimplified)
         ;
 
-    py::class_< BinBasedFastPointLocator < 3 > >(m,"BinBasedFastPointLocator3D")
+    py::class_< BinBasedFastPointLocator < 3 >, BinBasedFastPointLocator < 3 >::Pointer >(m,"BinBasedFastPointLocator3D")
         .def(py::init<ModelPart&  >())
         .def("UpdateSearchDatabase", &BinBasedFastPointLocator < 3 > ::UpdateSearchDatabase)
         .def("FindPointOnMesh", &BinBasedFastPointLocator < 3 > ::FindPointOnMeshSimplified)
@@ -571,6 +810,8 @@ void AddUtilitiesToPython(pybind11::module& m)
         .def("GenerateSkin", &EmbeddedSkinUtility < 2 > ::GenerateSkin)
         .def("InterpolateMeshVariableToSkin", InterpolateMeshVariableToSkinArray< 2 > )
         .def("InterpolateMeshVariableToSkin", InterpolateMeshVariableToSkinDouble< 2 > )
+        .def("InterpolateDiscontinuousMeshVariableToSkin", InterpolateDiscontinuousMeshVariableToSkinArray< 2 > )
+        .def("InterpolateDiscontinuousMeshVariableToSkin", InterpolateDiscontinuousMeshVariableToSkinDouble< 2 > )
         ;
 
     py::class_< EmbeddedSkinUtility <3 > >(m,"EmbeddedSkinUtility3D")
@@ -578,6 +819,8 @@ void AddUtilitiesToPython(pybind11::module& m)
         .def("GenerateSkin", &EmbeddedSkinUtility < 3 > ::GenerateSkin)
         .def("InterpolateMeshVariableToSkin", InterpolateMeshVariableToSkinArray< 3 > )
         .def("InterpolateMeshVariableToSkin", InterpolateMeshVariableToSkinDouble< 3 > )
+        .def("InterpolateDiscontinuousMeshVariableToSkin", InterpolateDiscontinuousMeshVariableToSkinArray< 3 > )
+        .def("InterpolateDiscontinuousMeshVariableToSkin", InterpolateDiscontinuousMeshVariableToSkinDouble< 3 > )
         ;
 
     py::class_< GeometryTesterUtility>(m,"GeometryTesterUtility")
@@ -590,6 +833,9 @@ void AddUtilitiesToPython(pybind11::module& m)
         .def("TestHexahedra3D8N", &GeometryTesterUtility::TestHexahedra3D8N)
         .def("TestHexahedra3D27N", &GeometryTesterUtility::TestHexahedra3D27N)
         .def("TestHexahedra3D20N", &GeometryTesterUtility::TestHexahedra3D20N)
+        .def("TestQuadrilateralInterface2D4N", &GeometryTesterUtility::TestQuadrilateralInterface2D4N)
+        .def("TestPrismInterface3D6N", &GeometryTesterUtility::TestPrismInterface3D6N)
+        .def("TestHexahedraInterface3D8N", &GeometryTesterUtility::TestHexahedraInterface3D8N)
         ;
 
     py::class_<CuttingUtility >(m,"CuttingUtility")
@@ -668,20 +914,27 @@ void AddUtilitiesToPython(pybind11::module& m)
     // Sparse matrix multiplication utility
     py::class_<SparseMatrixMultiplicationUtility, typename SparseMatrixMultiplicationUtility::Pointer>(m, "SparseMatrixMultiplicationUtility")
         .def(py::init<>())
-        .def("MatrixMultiplication",&SparseMatrixMultiplicationUtility::MatrixMultiplication<CompressedMatrix, CompressedMatrix, CompressedMatrix>)
-        .def("MatrixMultiplicationSaad",&SparseMatrixMultiplicationUtility::MatrixMultiplicationSaad<CompressedMatrix, CompressedMatrix, CompressedMatrix>)
-        .def("MatrixMultiplicationRMerge",&SparseMatrixMultiplicationUtility::MatrixMultiplicationRMerge<CompressedMatrix, CompressedMatrix, CompressedMatrix>)
-        .def("MatrixAdd",&SparseMatrixMultiplicationUtility::MatrixAdd<CompressedMatrix, CompressedMatrix>)
-        .def("TransposeMatrix",&SparseMatrixMultiplicationUtility::TransposeMatrix<CompressedMatrix, CompressedMatrix>)
+        .def_static("MatrixMultiplication",&SparseMatrixMultiplicationUtility::MatrixMultiplication<CompressedMatrix, CompressedMatrix, CompressedMatrix>)
+        .def_static("MatrixMultiplicationSaad",&SparseMatrixMultiplicationUtility::MatrixMultiplicationSaad<CompressedMatrix, CompressedMatrix, CompressedMatrix>)
+        .def_static("MatrixMultiplicationRMerge",&SparseMatrixMultiplicationUtility::MatrixMultiplicationRMerge<CompressedMatrix, CompressedMatrix, CompressedMatrix>)
+        .def_static("MatrixAdd",&SparseMatrixMultiplicationUtility::MatrixAdd<CompressedMatrix, CompressedMatrix>)
+        .def_static("TransposeMatrix",&SparseMatrixMultiplicationUtility::TransposeMatrix<CompressedMatrix, CompressedMatrix>)
         ;
 
     // Mortar utilities
-    py::class_<MortarUtilities, typename MortarUtilities::Pointer>(m, "MortarUtilities")
-        .def(py::init<>())
-        .def("ComputeNodesMeanNormalModelPart",&MortarUtilities::ComputeNodesMeanNormalModelPart)
-        .def("InvertNormal",&MortarUtilities::InvertNormal<PointerVectorSet<Element, IndexedObject>>)
-        .def("InvertNormal",&MortarUtilities::InvertNormal<PointerVectorSet<Condition, IndexedObject>>)
-        ;
+    auto mortar_utilities = m.def_submodule("MortarUtilities");
+    mortar_utilities.def("ComputeNodesMeanNormalModelPart",&MortarUtilities::ComputeNodesMeanNormalModelPart);
+    mortar_utilities.def("ComputeNodesTangentFromNormalModelPart",&MortarUtilities::ComputeNodesTangentFromNormalModelPart);
+    mortar_utilities.def("ComputeNodesTangentModelPart",ComputeNodesTangentModelPartWithSlipVariable);
+    mortar_utilities.def("ComputeNodesTangentModelPart",ComputeNodesTangentModelPartWithOutSlipVariable);
+    mortar_utilities.def("ComputeNodesTangentModelPart",ComputeNodesTangentModelPartWithSlipVariableNotAlwaysSlip);
+    mortar_utilities.def("ComputeNodesTangentModelPart",ComputeNodesTangentModelPartWithOutSlipVariableNotAlwaysSlip);
+    mortar_utilities.def("ComputeNodesTangentModelPart",ComputeNodesTangentModelPartWithSlipVariableNotAlwaysSlipUnitary);
+    mortar_utilities.def("ComputeNodesTangentModelPart",ComputeNodesTangentModelPartWithOutSlipVariableNotAlwaysSlipUnitary);
+    mortar_utilities.def("InvertNormal",&MortarUtilities::InvertNormal<PointerVectorSet<Element, IndexedObject>>);
+    mortar_utilities.def("InvertNormal",&MortarUtilities::InvertNormal<PointerVectorSet<Condition, IndexedObject>>);
+    mortar_utilities.def("InvertNormal",&MortarUtilities::InvertNormalForFlag<PointerVectorSet<Element, IndexedObject>>);
+    mortar_utilities.def("InvertNormal",&MortarUtilities::InvertNormalForFlag<PointerVectorSet<Condition, IndexedObject>>);
 
     // Read materials utility
     py::class_<ReadMaterialsUtility, typename ReadMaterialsUtility::Pointer>(m, "ReadMaterialsUtility")
@@ -689,14 +942,6 @@ void AddUtilitiesToPython(pybind11::module& m)
     .def(py::init<Parameters, Model&>())
     .def("ReadMaterials",&ReadMaterialsUtility::ReadMaterials)
     ;
-
-    // SubModelParts List Utility
-    py::class_<SubModelPartsListUtility, typename SubModelPartsListUtility::Pointer>(m, "SubModelPartsListUtility")
-        .def(py::init<ModelPart&>())
-        .def("DebugComputeSubModelPartsList",&SubModelPartsListUtility::DebugComputeSubModelPartsList)
-        .def("GetRecursiveSubModelPartNames",&SubModelPartsListUtility::GetRecursiveSubModelPartNames)
-        .def("GetRecursiveSubModelPart",&SubModelPartsListUtility::GetRecursiveSubModelPart)
-        ;
 
     // AssignUniqueModelPartCollectionTagUtility
     py::class_<AssignUniqueModelPartCollectionTagUtility, typename AssignUniqueModelPartCollectionTagUtility::Pointer>(m, "AssignUniqueModelPartCollectionTagUtility")
@@ -739,28 +984,121 @@ void AddUtilitiesToPython(pybind11::module& m)
     // Auxiliar ModelPart Utility
 
     py::class_<AuxiliarModelPartUtilities, typename AuxiliarModelPartUtilities::Pointer>(m, "AuxiliarModelPartUtilities")
-    .def(py::init<ModelPart&>())
-    .def("RemoveElementAndBelongings", ModelPartRemoveElementAndBelongings1)
-    .def("RemoveElementAndBelongings", ModelPartRemoveElementAndBelongings2)
-    .def("RemoveElementAndBelongings", ModelPartRemoveElementAndBelongings3)
-    .def("RemoveElementAndBelongings", ModelPartRemoveElementAndBelongings4)
-    .def("RemoveElementsAndBelongings", &Kratos::AuxiliarModelPartUtilities::RemoveElementsAndBelongings)
-    .def("RemoveElementAndBelongingsFromAllLevels", ModelPartRemoveElementAndBelongingsFromAllLevels1)
-    .def("RemoveElementAndBelongingsFromAllLevels", ModelPartRemoveElementAndBelongingsFromAllLevels2)
-    .def("RemoveElementAndBelongingsFromAllLevels", ModelPartRemoveElementAndBelongingsFromAllLevels3)
-    .def("RemoveElementAndBelongingsFromAllLevels", ModelPartRemoveElementAndBelongingsFromAllLevels4)
-    .def("RemoveElementsAndBelongingsFromAllLevels", &Kratos::AuxiliarModelPartUtilities::RemoveElementsAndBelongingsFromAllLevels)
-    .def("RemoveConditionAndBelongings", ModelPartRemoveConditionAndBelongings1)
-    .def("RemoveConditionAndBelongings", ModelPartRemoveConditionAndBelongings2)
-    .def("RemoveConditionAndBelongings", ModelPartRemoveConditionAndBelongings3)
-    .def("RemoveConditionAndBelongings", ModelPartRemoveConditionAndBelongings4)
-    .def("RemoveConditionsAndBelongings", &Kratos::AuxiliarModelPartUtilities::RemoveConditionsAndBelongings)
-    .def("RemoveConditionAndBelongingsFromAllLevels", ModelPartRemoveConditionAndBelongingsFromAllLevels1)
-    .def("RemoveConditionAndBelongingsFromAllLevels", ModelPartRemoveConditionAndBelongingsFromAllLevels2)
-    .def("RemoveConditionAndBelongingsFromAllLevels", ModelPartRemoveConditionAndBelongingsFromAllLevels3)
-    .def("RemoveConditionAndBelongingsFromAllLevels", ModelPartRemoveConditionAndBelongingsFromAllLevels4)
-    .def("RemoveConditionsAndBelongingsFromAllLevels", &Kratos::AuxiliarModelPartUtilities::RemoveConditionsAndBelongingsFromAllLevels)
-    ;
+        .def(py::init<ModelPart&>())
+        .def("RemoveElementAndBelongings", ModelPartRemoveElementAndBelongings1)
+        .def("RemoveElementAndBelongings", ModelPartRemoveElementAndBelongings2)
+        .def("RemoveElementAndBelongings", ModelPartRemoveElementAndBelongings3)
+        .def("RemoveElementAndBelongings", ModelPartRemoveElementAndBelongings4)
+        .def("RemoveElementsAndBelongings", &Kratos::AuxiliarModelPartUtilities::RemoveElementsAndBelongings)
+        .def("RemoveElementAndBelongingsFromAllLevels", ModelPartRemoveElementAndBelongingsFromAllLevels1)
+        .def("RemoveElementAndBelongingsFromAllLevels", ModelPartRemoveElementAndBelongingsFromAllLevels2)
+        .def("RemoveElementAndBelongingsFromAllLevels", ModelPartRemoveElementAndBelongingsFromAllLevels3)
+        .def("RemoveElementAndBelongingsFromAllLevels", ModelPartRemoveElementAndBelongingsFromAllLevels4)
+        .def("RemoveElementsAndBelongingsFromAllLevels", &Kratos::AuxiliarModelPartUtilities::RemoveElementsAndBelongingsFromAllLevels)
+        .def("RemoveConditionAndBelongings", ModelPartRemoveConditionAndBelongings1)
+        .def("RemoveConditionAndBelongings", ModelPartRemoveConditionAndBelongings2)
+        .def("RemoveConditionAndBelongings", ModelPartRemoveConditionAndBelongings3)
+        .def("RemoveConditionAndBelongings", ModelPartRemoveConditionAndBelongings4)
+        .def("RemoveConditionsAndBelongings", &Kratos::AuxiliarModelPartUtilities::RemoveConditionsAndBelongings)
+        .def("RemoveConditionAndBelongingsFromAllLevels", ModelPartRemoveConditionAndBelongingsFromAllLevels1)
+        .def("RemoveConditionAndBelongingsFromAllLevels", ModelPartRemoveConditionAndBelongingsFromAllLevels2)
+        .def("RemoveConditionAndBelongingsFromAllLevels", ModelPartRemoveConditionAndBelongingsFromAllLevels3)
+        .def("RemoveConditionAndBelongingsFromAllLevels", ModelPartRemoveConditionAndBelongingsFromAllLevels4)
+        .def("RemoveConditionsAndBelongingsFromAllLevels", &Kratos::AuxiliarModelPartUtilities::RemoveConditionsAndBelongingsFromAllLevels)
+        ;
+
+    // TimeDiscretization
+    auto mod_time_discretization = m.def_submodule("TimeDiscretization");
+
+    py::class_<TimeDiscretization::BDF>(mod_time_discretization, "BDF")
+        .def(py::init<const unsigned int>())
+        .def("GetTimeOrder", (unsigned int (TimeDiscretization::BDF::*)() const) & TimeDiscretization::BDF::GetTimeOrder)
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF::*)(double) const) & TimeDiscretization::BDF::ComputeBDFCoefficients)
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF::*)(double, double) const) & TimeDiscretization::BDF::ComputeBDFCoefficients)
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF::*)(const ProcessInfo &) const) & TimeDiscretization::BDF::ComputeBDFCoefficients)
+        .def("ComputeAndSaveBDFCoefficients", (void (TimeDiscretization::BDF::*)(ProcessInfo &) const) & TimeDiscretization::BDF::ComputeAndSaveBDFCoefficients)
+        ;
+    py::class_<TimeDiscretization::BDF1>(mod_time_discretization, "BDF1")
+        .def(py::init<>())
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF1::*)(double) const) &TimeDiscretization::BDF1::ComputeBDFCoefficients)
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF1::*)(const ProcessInfo&) const) &TimeDiscretization::BDF1::ComputeBDFCoefficients)
+        ;
+    py::class_<TimeDiscretization::BDF2>(mod_time_discretization, "BDF2")
+        .def(py::init<>())
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF2::*)(double, double) const) &TimeDiscretization::BDF2::ComputeBDFCoefficients)
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF2::*)(const ProcessInfo&) const) &TimeDiscretization::BDF2::ComputeBDFCoefficients)
+        ;
+    py::class_<TimeDiscretization::BDF3>(mod_time_discretization, "BDF3")
+        .def(py::init<>())
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF3::*)(double) const) &TimeDiscretization::BDF3::ComputeBDFCoefficients)
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF3::*)(const ProcessInfo&) const) &TimeDiscretization::BDF3::ComputeBDFCoefficients)
+        ;
+    py::class_<TimeDiscretization::BDF4>(mod_time_discretization, "BDF4")
+        .def(py::init<>())
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF4::*)(double) const) &TimeDiscretization::BDF4::ComputeBDFCoefficients)
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF4::*)(const ProcessInfo&) const) &TimeDiscretization::BDF4::ComputeBDFCoefficients)
+        ;
+    py::class_<TimeDiscretization::BDF5>(mod_time_discretization, "BDF5")
+        .def(py::init<>())
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF5::*)(double) const) &TimeDiscretization::BDF5::ComputeBDFCoefficients)
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF5::*)(const ProcessInfo&) const) &TimeDiscretization::BDF5::ComputeBDFCoefficients)
+        ;
+    py::class_<TimeDiscretization::BDF6>(mod_time_discretization, "BDF6")
+        .def(py::init<>())
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF6::*)(double) const) &TimeDiscretization::BDF6::ComputeBDFCoefficients)
+        .def("ComputeBDFCoefficients", (std::vector<double> (TimeDiscretization::BDF6::*)(const ProcessInfo&) const) &TimeDiscretization::BDF6::ComputeBDFCoefficients)
+        ;
+
+    py::class_<TimeDiscretization::Newmark>(mod_time_discretization, "Newmark")
+        .def(py::init<>())
+        .def(py::init<const double, const double>())
+        .def("GetBeta", &TimeDiscretization::Newmark::GetBeta)
+        .def("GetGamma", &TimeDiscretization::Newmark::GetGamma)
+        ;
+    py::class_<TimeDiscretization::Bossak>(mod_time_discretization, "Bossak")
+        .def(py::init<>())
+        .def(py::init<const double>())
+        .def(py::init<const double, const double, const double>())
+        .def("GetBeta", &TimeDiscretization::Bossak::GetBeta)
+        .def("GetGamma", &TimeDiscretization::Bossak::GetGamma)
+        .def("GetAlphaM", &TimeDiscretization::Bossak::GetAlphaM)
+        ;
+    py::class_<TimeDiscretization::GeneralizedAlpha>(mod_time_discretization, "GeneralizedAlpha")
+        .def(py::init<>())
+        .def(py::init<const double, const double>())
+        .def(py::init<const double, const double, const double, const double>())
+        .def("GetBeta", &TimeDiscretization::GeneralizedAlpha::GetBeta)
+        .def("GetGamma", &TimeDiscretization::GeneralizedAlpha::GetGamma)
+        .def("GetAlphaM", &TimeDiscretization::GeneralizedAlpha::GetAlphaM)
+        .def("GetAlphaF", &TimeDiscretization::GeneralizedAlpha::GetAlphaF)
+        ;
+
+    std::size_t (*GetMinimumBufferSizeBDF)(const TimeDiscretization::BDF&) = &TimeDiscretization::GetMinimumBufferSize;
+    std::size_t (*GetMinimumBufferSizeBDF1)(const TimeDiscretization::BDF1&) = &TimeDiscretization::GetMinimumBufferSize;
+    std::size_t (*GetMinimumBufferSizeBDF2)(const TimeDiscretization::BDF2&) = &TimeDiscretization::GetMinimumBufferSize;
+    std::size_t (*GetMinimumBufferSizeBDF3)(const TimeDiscretization::BDF3&) = &TimeDiscretization::GetMinimumBufferSize;
+    std::size_t (*GetMinimumBufferSizeBDF4)(const TimeDiscretization::BDF4&) = &TimeDiscretization::GetMinimumBufferSize;
+    std::size_t (*GetMinimumBufferSizeBDF5)(const TimeDiscretization::BDF5&) = &TimeDiscretization::GetMinimumBufferSize;
+    std::size_t (*GetMinimumBufferSizeBDF6)(const TimeDiscretization::BDF6&) = &TimeDiscretization::GetMinimumBufferSize;
+    std::size_t (*GetMinimumBufferSizeNewmark)(const TimeDiscretization::Newmark&) = &TimeDiscretization::GetMinimumBufferSize;
+    std::size_t (*GetMinimumBufferSizeBossak)(const TimeDiscretization::Bossak&) = &TimeDiscretization::GetMinimumBufferSize;
+    std::size_t (*GetMinimumBufferSizeGeneralizedAlpha)(const TimeDiscretization::GeneralizedAlpha&) = &TimeDiscretization::GetMinimumBufferSize;
+
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeBDF );
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeBDF1 );
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeBDF2 );
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeBDF3 );
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeBDF4 );
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeBDF5 );
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeBDF6 );
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeNewmark );
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeBossak );
+    mod_time_discretization.def("GetMinimumBufferSize", GetMinimumBufferSizeGeneralizedAlpha );
+
+    // GeometricalTransformationUtilities
+    auto mod_geom_trans_utils = m.def_submodule("GeometricalTransformationUtilities");
+    mod_geom_trans_utils.def("CalculateTranslationMatrix", &GeometricalTransformationUtilities::CalculateTranslationMatrix );
+    mod_geom_trans_utils.def("CalculateRotationMatrix", &GeometricalTransformationUtilities::CalculateRotationMatrix );
 }
 
 } // namespace Python.

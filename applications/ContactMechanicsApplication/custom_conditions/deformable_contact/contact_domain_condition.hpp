@@ -76,9 +76,13 @@ public:
   ///BaseLengths
   typedef ContactDomainUtilities::BaseLengths         BaseLengths;
 
+  typedef GlobalPointersVector<Node<3> >       NodeWeakPtrVectorType;
+  typedef GlobalPointersVector<Element>     ElementWeakPtrVectorType;
+  typedef GlobalPointersVector<Condition> ConditionWeakPtrVectorType;
+
   ///For 3D contact surfaces definition
-  typedef ContactDomainUtilities::ScalarBaseType  ScalarBaseType;
-  typedef ContactDomainUtilities::SurfaceBase           SurfaceBase;
+  typedef ContactDomainUtilities::ScalarBaseType   ScalarBaseType;
+  typedef ContactDomainUtilities::SurfaceBase         SurfaceBase;
 
 protected:
 
@@ -357,7 +361,7 @@ protected:
 public:
 
   /// Counted pointer of ContactDomainCondition
-  KRATOS_CLASS_POINTER_DEFINITION( ContactDomainCondition );
+  KRATOS_CLASS_INTRUSIVE_POINTER_DEFINITION( ContactDomainCondition );
 
 
   ///@}

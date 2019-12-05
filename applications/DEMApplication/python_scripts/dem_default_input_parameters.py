@@ -1,11 +1,11 @@
 from __future__ import print_function, absolute_import, division  # makes KratosMultiphysics backward compatible with python 2.6 and 2.7
 import KratosMultiphysics
-KratosMultiphysics.CheckForPreviousImport()
 
 def GetDefaultInputParameters():
 
     default_settings = KratosMultiphysics.Parameters("""
         {
+            "do_print_results_option"          : true,
             "Dimension"                        : 3,
             "PeriodicDomainOption"             : false,
             "BoundingBoxOption"                : false,
@@ -39,9 +39,8 @@ def GetDefaultInputParameters():
             "RotationOption"                   : true,
             "CleanIndentationsOption"          : false,
             "RemoveBallsInEmbeddedOption"      : false,
-            "strategy_parameters" :{
-                "RemoveBallsInitiallyTouchingWalls": false
-            },
+            "solver_settings" : {},
+            "echo_level"                  : 1,
             "problem_data"     : {
                 "problem_name"  : "dummy_name.Provide_a_real_one",
                 "parallel_type" : "OpenMP",
@@ -49,8 +48,31 @@ def GetDefaultInputParameters():
                 "start_time"    : 0.0,
                 "end_time"      : 1
             },
+            "_json_output_process"  : [{
+            "python_module" : "json_output_process",
+            "kratos_module" : "KratosMultiphysics",
+            "process_name"  : "JsonOutputProcess",
+            "Parameters"    : {
+                "output_variables"     : ["DISPLACEMENT_X","DISPLACEMENT_Y"],
+                "output_file_name"     : "candelier_results.json",
+                "model_part_name"      : "CandelierDEM",
+                "time_frequency"       : 1
+            }
+            }],
+            "print_output_process" : [{
+            "python_module"   : "from_json_check_result_process",
+            "kratos_module"   : "KratosMultiphysics",
+            "process_name"    : "FromJsonCheckResultProcess",
+            "Parameters"      : {
+                "check_variables"      : ["DISPLACEMENT_X","DISPLACEMENT_Y"],
+                "input_file_name"      : "candelier_errors.json",
+                "model_part_name"      : "SpheresPart",
+                "time_frequency"       : 1
+            }
+            }],
             "DeltaOption"                      : "Absolute",
             "SearchTolerance"                  : 0.0,
+            "search_tolerance_against_walls"   : 0.0,
             "CoordinationNumber"               : 10,
             "AmplifiedSearchRadiusExtension"   : 0.0,
             "MaxAmplificationRatioOfSearchRadius" : 10,
@@ -58,14 +80,16 @@ def GetDefaultInputParameters():
             "VirtualMassCoefficient"           : 1.0,
             "RollingFrictionOption"            : false,
             "ComputeStressTensorOption"        : false,
+            "ImposeZStrainIn2DOption"          : false,
+            "ZStrainValue"                     : "0.0*t",
             "GlobalDamping"                    : 0.0,
             "PoissonEffectOption"              : true,
             "ShearStrainParallelToBondOption"  : true,
             "DontSearchUntilFailure"           : false,
             "ContactMeshOption"                : false,
+            "MaxNumberOfIntactBondsToConsiderASphereBroken" : 0,
             "OutputFileType"                   : "Binary",
             "Multifile"                        : "multiple_files",
-            "TestType"                         : "None",
             "ElementType"                      : "SphericPartDEMElement3D",
 
             "TranslationalIntegrationScheme"   : "Symplectic_Euler",
@@ -89,14 +113,16 @@ def GetDefaultInputParameters():
             },
             "output_processes"                 :{},
 
-            "ConfinementPressure"              : 0.0,
-            "LoadingVelocity"                  : -0.10,
-            "MeshType"                         : "1",
-            "MeshPath"                         : "0",
-            "SpecimenLength"                   : 0.3,
-            "SpecimenDiameter"                 : 0.15,
-            "MeasuringSurface"                 : 0.01767145867644375,
-
+            "material_test_settings" : {
+                "TestType"                         : "None",
+                "ConfinementPressure"              : 0.0,
+                "LoadingVelocity"                  : -0.10,
+                "MeshType"                         : "1",
+                "MeshPath"                         : "0",
+                "SpecimenLength"                   : 0.3,
+                "SpecimenDiameter"                 : 0.15,
+                "MeasuringSurface"                 : 0.01767145867644375
+            },
             "GraphExportFreq"                  : 1e-3,
             "VelTrapGraphExportFreq"           : 1e-3,
             "OutputTimeStep"                   : 1e-2,
@@ -106,6 +132,7 @@ def GetDefaultInputParameters():
             "PostTotalForces"                  : false,
             "PostRigidElementForces"           : false,
             "PostSkinSphere"                   : false,
+            "PostGluedSphere"                  : false,
             "PostPoissonRatio"                 : false,
             "PostRadius"                       : false,
             "PostAngularVelocity"              : false,
@@ -143,7 +170,8 @@ def GetDefaultInputParameters():
             "LoadingVelocityTop"               : 0.0,
             "LoadingVelocityBot"               : 0.0,
 
-            "problem_name" : "dummy_name.Provide_a_real_one"
+            "problem_name" : "dummy_name.Provide_a_real_one",
+            "processes" : {}
             }""")
 
     return default_settings
