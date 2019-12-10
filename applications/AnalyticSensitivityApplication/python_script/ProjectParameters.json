@@ -15,6 +15,7 @@
         "time_stepping"     : {
             "time_step" : 1.0
         },
+        "volumetric_strain_dofs":false, 
         "linear_solver_settings"             : {
             "solver_type"         : "AMGCL",
             "max_iteration"       : 500,
